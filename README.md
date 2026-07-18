@@ -6,7 +6,7 @@ A collection of my libraries and plugins for [SilverBullet](https://silverbullet
 
 | Library | Description | Status |
 |---------|-------------|--------|
-| Kanboard | Integration between SilverBullet and Kanboard. | 🚧 In development |
+| [[Kanboard][kanboard/kanboard.md]] | Integration between SilverBullet and Kanboard. | 🚧 In development |
 
 ## Installation
 
