@@ -570,8 +570,6 @@ end
 -- Rebuilds a project's cache from Kanboard.
 -----------------------------------------------------------------------
 function kanboard.rebuildCache(project, cachePage, columns, categories)
-	editor.flashNotification(project.name)
-
     -- Retrieve all tasks.
 	local response = kanboard.rpc("getAllTasks", {
 		project_id = project.id
@@ -646,7 +644,6 @@ function kanboard.updateCacheEntry(kbTask, cachePage, columns, categories)
 		return
 	end
 	space.writePage(cachePage, text)
-	editor.flashNotification("Cache updated.")
 end
 
 
