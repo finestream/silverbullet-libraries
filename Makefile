@@ -127,7 +127,7 @@ testspace: all
 
 release: all
 	@echo "Publishing libraries..."
-	@major=$$(cat $(RELEASE_MAJOR_FILE) 2>/dev/null || echo 0); minor=$$(cat $(RELEASE_MINOR_FILE) 2>/dev/null || echo 0); patch=$$(cat $(RELEASE_PATCH_FILE) 2>/dev/null || echo 0); ver=$$major.$$minor.$$patch; if [ -f "$(RELEASE_DIR)/VERSION" ] && [ "$$ver" = "$$(cat $(RELEASE_DIR)/VERSION)" ]; then echo "Version $$ver already released in $(RELEASE_DIR)/VERSION"; exit 1; fi; mkdir -p $(RELEASE_DIR)/Library/Finestream; cp "$(TEST_BUILD_DIR)/Library/Finestream/Kanboard.md" "$(RELEASE_DIR)/Library/Finestream/Kanboard.md"; echo "$$ver" > "$(RELEASE_DIR)/VERSION"; git tag -a "v$$ver" -m "Release $$ver" || echo "git tag failed (maybe already exists)"; echo "Published to $(RELEASE_DIR)/Library/Finestream/Kanboard.md (VERSION=$$ver)"
+	@major=$$(cat $(RELEASE_MAJOR_FILE) 2>/dev/null || echo 0); minor=$$(cat $(RELEASE_MINOR_FILE) 2>/dev/null || echo 0); patch=$$(cat $(RELEASE_PATCH_FILE) 2>/dev/null || echo 0); ver=$$major.$$minor.$$patch; if [ -f "$(RELEASE_DIR)/VERSION" ] && [ "$$ver" = "$$(cat $(RELEASE_DIR)/VERSION)" ]; then echo "Version $$ver already released in $(RELEASE_DIR)/VERSION"; exit 1; fi; mkdir -p $(RELEASE_DIR); cp "$(TEST_BUILD_DIR)/Kanboard.md" "$(RELEASE_DIR)/Kanboard.md"; echo "$$ver" > "$(RELEASE_DIR)/VERSION"; git tag -a "v$$ver" -m "Release $$ver" || echo "git tag failed (maybe already exists)"; echo "Published to $(RELEASE_DIR)/Kanboard.md"
 
 .PHONY: bump-feature bump-fix
 
