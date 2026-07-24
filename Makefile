@@ -148,7 +148,7 @@ bump-fix:
 	major=$$(cat $(RELEASE_MAJOR_FILE) 2>/dev/null || echo 0); \
 	minor=$$(cat $(RELEASE_MINOR_FILE) 2>/dev/null || echo 0); \
 	echo "Bumped patch to $$major.$$minor.$$patch"
-
+mak
 ###############################################################################
 # Changelog
 ###############################################################################
