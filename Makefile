@@ -109,13 +109,25 @@ testspace: all
 	@printf '%s\n' '```space-lua' > "$(TEST_TEST_DIR)/CONFIG.md"
 	@printf '%s\n' 'config.set {' >> "$(TEST_TEST_DIR)/CONFIG.md"
 	@printf '%s\n' '  kanboard = {' >> "$(TEST_TEST_DIR)/CONFIG.md"
-	@printf '      kbBaseUrl = "%s", -- Kanboard base URL\n' "$(KB_BASE_URL)" >> "$(TEST_TEST_DIR)/CONFIG.md"
-	@printf '      sbBaseUrl = "%s", -- Silverbullet base URL\n' "http://localhost:$(SB_HOST_PORT)" >> "$(TEST_TEST_DIR)/CONFIG.md"
-	@printf '      kbUsername = "%s", -- Kanboard username\n' "$(KB_USERNAME)" >> "$(TEST_TEST_DIR)/CONFIG.md"
-	@printf '      kbToken = "%s", -- Kanboard token for username\n' "$(KB_TOKEN)" >> "$(TEST_TEST_DIR)/CONFIG.md"
-	@printf '      kbProjectId = %s, -- default projectId in Kanboard\n' "$(KB_PROJECT_ID)" >> "$(TEST_TEST_DIR)/CONFIG.md"
-	@printf '%s\n' '      sbCachePath = "Kanboard", -- Path on Silverbullet space for cache' >> "$(TEST_TEST_DIR)/CONFIG.md"
-	@printf '%s\n' '      sbCacheRefreshHours = 6, -- max cache age in hours' >> "$(TEST_TEST_DIR)/CONFIG.md"
+	@printf '      kbBaseUrl = "%s", -- Kanboard base URL\n' \
+		"$(KB_BASE_URL)" \
+		>> "$(TEST_TEST_DIR)/CONFIG.md"
+	@printf '      sbBaseUrl = "%s", -- Silverbullet base URL\n' \
+		"http://localhost:$(SB_HOST_PORT)" \
+		>> "$(TEST_TEST_DIR)/CONFIG.md"
+	@printf '      kbUsername = "%s", -- Kanboard username\n' \
+		"$(KB_USERNAME)" \
+		>> "$(TEST_TEST_DIR)/CONFIG.md"
+	@printf '      kbToken = "%s", -- Kanboard token for username\n' \
+		"$(KB_TOKEN)" \
+		>> "$(TEST_TEST_DIR)/CONFIG.md"
+	@printf '      kbProjectId = %s, -- default projectId in Kanboard\n' \
+		"$(KB_PROJECT_ID)" \
+		>> "$(TEST_TEST_DIR)/CONFIG.md"
+	@printf '%s\n' '      sbCachePath = "Kanboard", -- Path on Silverbullet space for cache' \
+		>> "$(TEST_TEST_DIR)/CONFIG.md"
+	@printf '%s\n' '      sbCacheRefreshHours = 6, -- max cache age in hours' \
+		>> "$(TEST_TEST_DIR)/CONFIG.md"
 	@printf '%s\n' '  }' >> "$(TEST_TEST_DIR)/CONFIG.md"
 	@printf '%s\n' '}' >> "$(TEST_TEST_DIR)/CONFIG.md"
 	@printf '%s\n' '```' >> "$(TEST_TEST_DIR)/CONFIG.md"
@@ -127,7 +139,21 @@ testspace: all
 
 release: all
 	@echo "Publishing libraries..."
-	@major=$$(cat $(RELEASE_MAJOR_FILE) 2>/dev/null || echo 0); minor=$$(cat $(RELEASE_MINOR_FILE) 2>/dev/null || echo 0); patch=$$(cat $(RELEASE_PATCH_FILE) 2>/dev/null || echo 0); ver=$$major.$$minor.$$patch; if [ -f "$(RELEASE_DIR)/VERSION" ] && [ "$$ver" = "$$(cat $(RELEASE_DIR)/VERSION)" ]; then echo "Version $$ver already released in $(RELEASE_DIR)/VERSION"; exit 1; fi; mkdir -p $(RELEASE_DIR); cp "$(TEST_BUILD_DIR)/Kanboard.md" "$(RELEASE_DIR)/Kanboard.md"; echo "$$ver" > "$(RELEASE_DIR)/VERSION"; git tag -a "v$$ver" -m "Release $$ver" || echo "git tag failed (maybe already exists)"; echo "Published to $(RELEASE_DIR)/Kanboard.md"
+	@major=$$(cat $(RELEASE_MAJOR_FILE) 2>/dev/null || echo 0); \
+	minor=$$(cat $(RELEASE_MINOR_FILE) 2>/dev/null || echo 0); \
+	patch=$$(cat $(RELEASE_PATCH_FILE) 2>/dev/null || echo 0); \
+	ver=$$major.$$minor.$$patch; \
+	if [ -f "$(RELEASE_DIR)/VERSION" ] && \
+		[ "$$ver" = "$$(cat $(RELEASE_DIR)/VERSION)" ]; then \
+		echo "Version $$ver already released in $(RELEASE_DIR)/VERSION"; \
+		exit 1; \
+	fi; \
+	mkdir -p $(RELEASE_DIR)/Library/Finestream; \
+	cp "$(TEST_BUILD_DIR)/Library/Finestream/Kanboard.md" \
+		"$(RELEASE_DIR)/Library/Finestream/Kanboard.md"; \
+	echo "$$ver" > "$(RELEASE_DIR)/VERSION"; \
+	git tag -a "v$$ver" -m "Release $$ver" || echo "git tag failed (maybe already exists)"; \
+	echo "Published to $(RELEASE_DIR)/Library/Finestream/Kanboard.md (VERSION=$$ver)"
 
 .PHONY: bump-feature bump-fix
 
