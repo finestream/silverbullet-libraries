@@ -41,6 +41,8 @@ config.set {
       kbUsername = "me@mydomain.com", --Kanboard username
       kbToken = "5ec7e7", --Kanboard token for kbUsername obtain in Kanboard
       kbProjectId = 1, --default projectId in Kanboard 
+      kbMoveDone = true, -- options move tasks done in SB to the last Kanboard column when syncing status
+      kbCloseDone = true, -- options mark tasks done in SB as closed in Kanboard when syncing status
       sbCachePath = "Kanboard", --Path on Silverbullet space where the tasks will be cached
       sbCacheRefreshHours = 6, --max cache age in hours
   }
@@ -56,6 +58,7 @@ config.set {
 `Kanboard: Refile Project` Creates a new project from the current idea
 `Kanboard: Send Task` Sends a Silverbullet task to Kanboard 
 `Kanboard: Update Cache` Updates the cache of Kanboard Tasks in Silverbullet
+`Kanboard: Sync Status` Update tasks marked as done in SB on Kanboard and refreshes the cache
 
 ### virtual pages
 `pageId:<pageId of the page>` Used to create permanent links to the orginating pages 
