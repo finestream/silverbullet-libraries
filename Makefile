@@ -128,6 +128,10 @@ testspace: all
 		>> "$(TEST_TEST_DIR)/CONFIG.md"
 	@printf '%s\n' '      sbCacheRefreshHours = 6, -- max cache age in hours' \
 		>> "$(TEST_TEST_DIR)/CONFIG.md"
+	@printf '%s\n' '      kbCloseDone = false, -- close done tasks when syncing status' \
+		>> "$(TEST_TEST_DIR)/CONFIG.md"
+	@printf '%s\n' '      kbMoveDone = true, -- move done tasks to the last Kanboard column when syncing status' \
+		>> "$(TEST_TEST_DIR)/CONFIG.md"
 	@printf '%s\n' '  }' >> "$(TEST_TEST_DIR)/CONFIG.md"
 	@printf '%s\n' '}' >> "$(TEST_TEST_DIR)/CONFIG.md"
 	@printf '%s\n' '```' >> "$(TEST_TEST_DIR)/CONFIG.md"

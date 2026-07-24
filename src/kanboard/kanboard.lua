@@ -653,6 +653,103 @@ function kanboard.buildCacheEntry(task, columns, categories)
 end
 
 -----------------------------------------------------------------------
+-- findLastColumnId(columns)
+--
+-- Returns the ID of the last column in the provided Kanboard column list.
+-----------------------------------------------------------------------
+function kanboard.findLastColumnId(columns)
+    local lastColumnId = nil
+    local maxPosition = 0
+    for _, column in ipairs(columns) do
+        local position = tonumber(column.position) or 0
+        if position >= maxPosition then
+            maxPosition = position
+            lastColumnId = column.id
+        end
+    end
+    return lastColumnId
+end
+
+-----------------------------------------------------------------------
+-- syncStatus(projectId)
+--
+-- Closes locally closed tasks in the cached Kanboard page on Kanboard and
+-- optionally moves them to the last column.
+-----------------------------------------------------------------------
+function kanboard.syncStatus(projectId)
+    local cfg = config.get("kanboard")
+	if not cfg.kbCloseDone and not cfg.kbMoveDone then
+		editor.flashNotification("Kanboard: No sync action configured (kbCloseDone and kbMoveDone are both false).", "info")
+		return
+	end
+    projectId = projectId or cfg.kbProjectId
+
+    local response = kanboard.rpc("getProjectById", {
+        project_id = projectId
+    })
+    if not kanboard.checkResponse(response) then
+        editor.flashNotification("Unable to retrieve project.", "error")
+        return
+    end
+    local project = response.body.result
+
+    local cachePage = cfg.sbCachePath .. "/" .. project.name
+    local closedTasks = query[[from t=tags.task where t.page == "Kanboard/To-Do" and t.done]]
+	if #closedTasks == 0 then
+        editor.flashNotification("Kanboard: No closed tasks found to sync.", "info")
+        return
+    end
+
+    local lastColumnId = nil
+	if cfg.kbMoveDone then
+		local columnsResponse = kanboard.rpc("getColumns", {project_id = projectId})
+    	if not kanboard.checkResponse(columnsResponse) then
+        	editor.flashNotification("Unable to retrieve columns.", "error")
+        	return
+    	end
+    	local columns = columnsResponse.body.result
+        lastColumnId = kanboard.findLastColumnId(columns)
+    end
+
+    local closedCount = 0
+    local movedCount = 0
+    local failedCount = 0
+
+    for _, task in ipairs(closedTasks) do
+		if lastColumnId then
+			local moveResponse = kanboard.rpc("moveTaskPosition", {
+					project_id = projectId,
+					swimlane_id = task.swimlaneId,
+                    task_id = task.kbId,
+                    column_id = lastColumnId,
+                    position = 1
+                })
+            if kanboard.checkResponse(moveResponse) then
+                movedCount = movedCount + 1
+            else
+                failedCount = failedCount + 1
+            end
+		end
+		if cfg.kbCloseDone then
+ 	        local closeResponse = kanboard.rpc("closeTask", {task_id = task.kbId})
+    	    if kanboard.checkResponse(closeResponse) then
+        	    closedCount = closedCount + 1
+        	else
+            failedCount = failedCount + 1
+        	end
+		end
+    end
+
+    if closedCount > 0 or movedCount > 0 then
+        kanboard.updateCache(projectId)
+		editor.flashNotification("Kanboard: Updated tasks: Closed " .. closedCount .. ", Moved " .. movedCount .. ".")
+    end
+    if failedCount > 0 then
+        editor.flashNotification("Kanboard: Failed to sync " .. failedCount .. " task(s).")
+    end
+end
+
+-----------------------------------------------------------------------
 -- Command:refileSubtree
 --
 -- Moves the current subtree into its own page.
@@ -756,6 +853,17 @@ command.define{
 	run = function()
 		local projectId = editor.getCurrentPageMeta().kbProject
 		kanboard.updateCache(projectId)
+	end
+}
+
+-----------------------------------------------------------------------
+-- Sync locally closed Kanboard tasks.
+-----------------------------------------------------------------------
+command.define{
+	name = "kanboard: Sync Status",
+	run = function()
+		local projectId = editor.getCurrentPageMeta().kbProject
+		kanboard.syncStatus(projectId)
 	end
 }
 
