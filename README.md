@@ -10,7 +10,7 @@ A collection of my libraries and plugins for [SilverBullet](https://silverbullet
 
 ## Installation
 
-Install libraries directly from within SilverBullet using the Library Manager.
+Install the libraries directly from within SilverBullet using the Library Manager.
 
 Repository index:
 
