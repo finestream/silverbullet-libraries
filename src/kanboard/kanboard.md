@@ -41,6 +41,7 @@ config.set {
       kbUsername = "me@mydomain.com", --Kanboard username
       kbToken = "5ec7e7", --Kanboard token for kbUsername obtain in Kanboard
       kbProjectId = 1, --default projectId in Kanboard 
+      kbSwimlaneId = 1, --default swimlaneId in Kanboard for new tasks
       kbMoveDone = true, -- options move tasks done in SB to the last Kanboard column when syncing status
       kbCloseDone = true, -- options mark tasks done in SB as closed in Kanboard when syncing status
       sbCachePath = "Kanboard", --Path on Silverbullet space where the tasks will be cached
@@ -63,5 +64,8 @@ config.set {
 ### virtual pages
 `pageId:<pageId of the page>` Used to create permanent links to the orginating pages 
 that survive page renaming 
+
+### note 
+The library only caches Kanboard tasks that are not closed.
 
 ## Code

@@ -46,6 +46,10 @@ kanboard:
 	@cat src/kanboard/kanboard.md >> "$(TEST_BUILD_DIR)/Kanboard.md"
 	@echo "" >> "$(TEST_BUILD_DIR)/Kanboard.md"
 	@echo '```space-lua' >> "$(TEST_BUILD_DIR)/Kanboard.md"
+	@cat src/kanboard/library.lua >> \
+		"$(TEST_BUILD_DIR)/Kanboard.md"	
+	@cat src/kanboard/org.lua >> \
+		"$(TEST_BUILD_DIR)/Kanboard.md"
 	@cat src/kanboard/kanboard.lua >> \
 		"$(TEST_BUILD_DIR)/Kanboard.md"
 	@echo "" >> "$(TEST_BUILD_DIR)/Kanboard.md"
@@ -123,6 +127,8 @@ testspace: all
 		>> "$(TEST_TEST_DIR)/CONFIG.md"
 	@printf '      kbProjectId = %s, -- default projectId in Kanboard\n' \
 		"$(KB_PROJECT_ID)" \
+		>> "$(TEST_TEST_DIR)/CONFIG.md"
+	@printf '%s\n' '      kbSwimlaneId = 1, -- default swimlaneId in Kanboard for new tasks' \
 		>> "$(TEST_TEST_DIR)/CONFIG.md"
 	@printf '%s\n' '      sbCachePath = "Kanboard", -- Path on Silverbullet space for cache' \
 		>> "$(TEST_TEST_DIR)/CONFIG.md"
