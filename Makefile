@@ -158,8 +158,8 @@ release: all
 		exit 1; \
 	fi; \
 	mkdir -p $(RELEASE_DIR)/Library/Finestream; \
-	cp "$(TEST_BUILD_DIR)/Library/Finestream/Kanboard.md" \
-		"$(RELEASE_DIR)/Library/Finestream/Kanboard.md"; \
+	cp "$(TEST_BUILD_DIR)/Kanboard.md" \
+		"$(RELEASE_DIR)/Kanboard.md"; \
 	echo "$$ver" > "$(RELEASE_DIR)/VERSION"; \
 	git tag -a "v$$ver" -m "Release $$ver" || echo "git tag failed (maybe already exists)"; \
 	echo "Published to $(RELEASE_DIR)/Library/Finestream/Kanboard.md (VERSION=$$ver)"
