@@ -1,9 +1,9 @@
 -----------------------------------------------------------------------
--- Package library
--- 
+-- Package Library
+--
 -- reusable functions for silverbullet
 -----------------------------------------------------------------------
-library = {}
+Library = {}
 
 -----------------------------------------------------------------------
 -- generateUuid()
@@ -18,7 +18,7 @@ library = {}
 --
 --     550e8400-e29b-41d4-a716-446655440000
 -----------------------------------------------------------------------
-function library.generateUuid()
+function Library.generateUuid()
 	return ("xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx"):gsub("[xy]", function(c)
 		local v = (c == "x") and math.random(0, 15) or math.random(8, 11)
 		return string.format("%x", v)
@@ -28,11 +28,11 @@ end
 -----------------------------------------------------------------------
 -- escapePattern()
 --
--- Escape < and > 
--- currently it seems that there is no way to escape hence it is removed 
+-- Escape < and >
+-- currently it seems that there is no way to escape hence it is removed
 -----------------------------------------------------------------------
-function library.escapePattern(s)
-	return (s:gsub("[<>]",""))
+function Library.escapePattern(s)
+	return (s:gsub("[<>]", ""))
 end
 
 -----------------------------------------------------------------------
@@ -54,7 +54,7 @@ end
 -- This helper centralises page creation so every command behaves
 -- consistently.
 -----------------------------------------------------------------------
-function library.createPageWithText(page, text)
+function Library.createPageWithText(page, text)
 	if page == nil or page == "" then
 		return false, "No page name specified."
 	end
@@ -84,14 +84,14 @@ end
 --   false, existingValue
 --       Key already exists and force = false.
 -----------------------------------------------------------------------
-function library.setFrontmatter(key, value, force)
+function Library.setFrontmatter(key, value, force)
 	local text = editor.getText()
 
-    -- Existing frontmatter?
+	-- Existing frontmatter?
 	local fmStart, fmEnd, frontmatter = text:find("^(%-%-%-\n(.-)\n%-%-%-\n?)")
 	if frontmatter then
-        -- Key already exists?
-		local patternKey = library.escapePattern(key)
+		-- Key already exists?
+		local patternKey = Library.escapePattern(key)
 		local existing = frontmatter:match(patternKey .. ":%s*([^\n]+)")
 		if existing then
 			if not force then
@@ -105,7 +105,7 @@ function library.setFrontmatter(key, value, force)
 		return true, value
 	end
 
-    -- No frontmatter: create one
+	-- No frontmatter: create one
 	local newFrontmatter = "---\n" .. key .. ": " .. tostring(value) .. "\n" .. "---\n\n"
 	editor.setText(newFrontmatter .. text)
 	return true, value
@@ -139,12 +139,12 @@ end
 --   - duplicate
 --   - extract
 -----------------------------------------------------------------------
-function library.currentSubtree()
+function Library.currentSubtree()
 	local text = editor.getText()
 	local cursor = editor.getCursor()
 	local start = 1
 
-  -- First heading in file?
+	-- First heading in file?
 	if not text:match("^## ") then
 		start = text:find("\n## ", 1, true)
 		if not start then
@@ -165,7 +165,7 @@ function library.currentSubtree()
 		finish = text:find("\n## ", start + 1, true)
 	end
 
-  -- Last subtree extends to end of file
+	-- Last subtree extends to end of file
 	if cursor >= start then
 		return {
 			start = start,
@@ -198,10 +198,10 @@ end
 --
 -- Returns nil if the cursor is not inside exactly one task.
 -----------------------------------------------------------------------
-function library.currentTask()
+function Library.currentTask()
 	local cursor = editor.getCursor()
 	local currpage = editor.getCurrentPage()
-	local tasks = query[[
+	local tasks = query [[
         from index.tasks()
         where page == currpage
             and pos <= cursor
@@ -209,7 +209,7 @@ function library.currentTask()
     ]]
 	if # tasks ~= 1 then
 		editor.flashNotification("Expected exactly one task, found " .. # tasks .. ".", "error")
-        -- return nil
+		-- return nil
 	end
 	local task = tasks[1]
 	return {
@@ -219,7 +219,6 @@ function library.currentTask()
 		text = task.name
 	}
 end
-
 
 -----------------------------------------------------------------------
 -- Command:refileSubtree
@@ -241,16 +240,16 @@ end
 --   5. Remove the original subtree after successful page creation,
 --      leaving only the backlink in the source document.
 -----------------------------------------------------------------------
-command.define{
+command.define {
 	name = "refileSubtree",
 	run = function()
-		local subtree = library.currentSubtree()
+		local subtree = Library.currentSubtree()
 		if not subtree then
 			editor.flashNotification("No subtree found.", "error")
 			return
 		end
 		local page = editor.prompt("Move subtree to page:", "Project/New project " .. os.date("%Y-%m-%d"))
-		local ok, err = library.createPageWithText(page, subtree.text)
+		local ok, err = Library.createPageWithText(page, subtree.text)
 		if not ok then
 			editor.flashNotification(err, "error")
 			return
@@ -261,7 +260,7 @@ command.define{
 			headingEnd = # text
 		end
 		editor.replaceRange(
-      headingEnd - 1, subtree.finish - 1, "\nMoved to: [[" .. page .. "]]")
+			headingEnd - 1, subtree.finish - 1, "\nMoved to: [[" .. page .. "]]")
 		editor.flashNotification("Subtree copied to '" .. page .. "'.")
 	end
 }
@@ -280,10 +279,10 @@ command.define{
 --   -> type title
 --   -> continue writing below
 -----------------------------------------------------------------------
-slashCommand.define{
-	name = "Idea: New",
+slashCommand.define {
+	name = "idea",
 	run = function()
-		text = string.format("## |^|\n[created: %s]", os.date("%Y-%m-%d %H:%M"))
+		local text = string.format("## |^|\n[created: %s]", os.date("%Y-%m-%d %H:%M"))
 		editor.insertAtCursor(text, false, true)
 	end
 }
@@ -291,11 +290,11 @@ slashCommand.define{
 -----------------------------------------------------------------------
 -- Command: add page id
 -----------------------------------------------------------------------
-command.define{
+command.define {
 	name = "Page: Add id",
 	run = function()
-		local uuid = library.generateUuid()
-		local ok, value = library.setFrontmatter("pageId", uuid, false)
+		local uuid = Library.generateUuid()
+		local ok, value = Library.setFrontmatter("pageId", uuid, false)
 		if ok then
 			editor.flashNotification("pageId = " .. value)
 		else
@@ -307,10 +306,10 @@ command.define{
 -----------------------------------------------------------------------
 -- Get page by pageId
 -----------------------------------------------------------------------
-virtualPage.define{
+virtualPage.define {
 	pattern = "pageId:(.+)",
 	run = function(tgtpageId)
-		local pages = query[[
+		local pages = query [[
             from index.pages()
             where pageId == tgtpageId
         ]]
@@ -321,6 +320,9 @@ virtualPage.define{
 			return "# Duplicate pageId\n\nMore than one page has pageId `" .. tgtpageId .. "`.\n"
 		end
 		local pageName = pages[1].name
-		return "# Page with PageId " .. tgtpageId .. "\n\nRedirecting... if the redirect does not work click here:  [[" .. pageName .. "]] .. ${editor.navigate(\"" .. pageName .. "@1\")}\n"
+		return "# Page with PageId " ..
+			tgtpageId ..
+			"\n\nRedirecting... if the redirect does not work click here:  [[" ..
+			pageName .. "]] .. ${editor.navigate(\"" .. pageName .. "@1\")}\n"
 	end
 }
