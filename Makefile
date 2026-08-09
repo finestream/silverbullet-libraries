@@ -48,8 +48,6 @@ kanboard:
 	@echo '```space-lua' >> "$(TEST_BUILD_DIR)/Kanboard.md"
 	@cat src/kanboard/library.lua >> \
 		"$(TEST_BUILD_DIR)/Kanboard.md"	
-	@cat src/kanboard/org.lua >> \
-		"$(TEST_BUILD_DIR)/Kanboard.md"
 	@cat src/kanboard/kanboard.lua >> \
 		"$(TEST_BUILD_DIR)/Kanboard.md"
 	@echo "" >> "$(TEST_BUILD_DIR)/Kanboard.md"
@@ -86,11 +84,14 @@ help:
 	@printf " and open it in a browser\n"
 	@printf "  testspace\tPrepare the SilverBullet testspace and copy the\n"
 	@printf "    built library into it\n"
+	@printf "\nRelease and versioning:\n"
+	@printf "  release\tPublish built libraries to the release directory\n"
+	@printf "  bump-feature\tIncrement the feature version and reset patch\n"
+	@printf "  bump-fix\tIncrement the patch version\n"
 	@printf "\nMaintenance:\n"
 	@printf "  clean\t\tStop the SilverBullet test container and remove\n"
 	@printf "    generated test files\n"
-	@printf "  release\tPublish built libraries to the release directory\n"
-	@printf "  changelog\tGenerate changelog from git history (TODO)\n"
+	@printf "  help\t\tShow this help message\n"
 	@printf "\nEnvironment vars:\n"
 	@printf "  SB_HOST_PORT\tHost port for Docker port mapping (default: 3000)\n"
 	@printf "  KB_BASE_URL\tKanboard base URL used in CONFIG.md\n"
@@ -109,7 +110,7 @@ testspace: all
 		cp -R "$(TEST_SPACE_DIR)/." "$(TEST_TEST_DIR)/"; \
 	fi
 	@cp "$(TEST_BUILD_DIR)/Kanboard.md" \
-		"$(TEST_TEST_DIR)/Kanboard.md"
+		"$(TEST_TEST_DIR)/Library/Finestream/Kanboard.md"
 	@printf '%s\n' '```space-lua' > "$(TEST_TEST_DIR)/CONFIG.md"
 	@printf '%s\n' 'config.set {' >> "$(TEST_TEST_DIR)/CONFIG.md"
 	@printf '%s\n' '  kanboard = {' >> "$(TEST_TEST_DIR)/CONFIG.md"
@@ -127,8 +128,6 @@ testspace: all
 		>> "$(TEST_TEST_DIR)/CONFIG.md"
 	@printf '      kbProjectId = %s, -- default projectId in Kanboard\n' \
 		"$(KB_PROJECT_ID)" \
-		>> "$(TEST_TEST_DIR)/CONFIG.md"
-	@printf '%s\n' '      kbSwimlaneId = 1, -- default swimlaneId in Kanboard for new tasks' \
 		>> "$(TEST_TEST_DIR)/CONFIG.md"
 	@printf '%s\n' '      sbCachePath = "Kanboard", -- Path on Silverbullet space for cache' \
 		>> "$(TEST_TEST_DIR)/CONFIG.md"
@@ -184,14 +183,6 @@ bump-fix:
 	major=$$(cat $(RELEASE_MAJOR_FILE) 2>/dev/null || echo 0); \
 	minor=$$(cat $(RELEASE_MINOR_FILE) 2>/dev/null || echo 0); \
 	echo "Bumped patch to $$major.$$minor.$$patch"
-
-###############################################################################
-# Changelog
-###############################################################################
-
-changelog:
-	@echo "Generating CHANGELOG..."
-	@echo "TODO: generate CHANGELOG from git history"
 
 ###############################################################################
 # Clean
