@@ -15,7 +15,7 @@ Synchronize tasks between Silverbullet and Kanboard while keeping
 SilverBullet as the primary workspace for thinking and Kanboard as the
 primary space for task management.
 
-Enable minimal offline operations by leveraging native SilverBullet 
+Enable minimal offline operations by leveraging native SilverBullet
 capabilities.
 
 ## Features & workflow
@@ -26,24 +26,26 @@ Consolidate your tasks in Kanboard and see them seamlessly as Silverbullet Tasks
 - (optional) Mull over your ideas with standard Silverbullet tools (see [Outlines](https://silverbullet.md/Outlines))
 - (optional) Refile ideas into projects with the command "Kanboard: refile Project"
 - create Silverbullet tasks anywhere you like (e.g., in a Project page)
-- Send SilverBullet tasks to Kanboard with the command "Kanboard: Send Task" (or by using the shortcut) 
+- Send SilverBullet tasks to Kanboard with the command "Kanboard: Send Task" (or by using the shortcut)
 
-Here is where the magic happens: 
+Here is where the magic happens:
+
 - the Plug creates a task in Kanboard
 - it caches a copy of the task locally
 - it replaces the original task with a live query to the Cache in SB
 - Kanboard tasks are back-linked to the originating page
 
-From now on 
+From now on
+
 - you manage your tasks in Kanboard
 - you can sync them to silverbullet with the command "Kanboard: update Cache"
-- each task in Kanboard links (with Permalinks) back to the page where it was created 
+- each task in Kanboard links (with Permalinks) back to the page where it was created
 
 ## Configuration
 
 Add the following section to your `CONFIG` page in a space-lua block:
 
-```
+```lua
 config.set {
   kanboard = {
       kbBaseUrl = "https://kanboard.mydomain.com", --Kanboard base URL
@@ -51,9 +53,10 @@ config.set {
       kbUsername = "me@mydomain.com", --Kanboard username
       kbToken = "5ec7e7", --Kanboard token for kbUsername obtain in Kanboard
       kbProjectId = 1, --default projectId in Kanboard 
+      kbMoveDone = true, -- options move tasks done in SB to the last Kanboard column when syncing status
+      kbCloseDone = true, -- options mark tasks done in SB as closed in Kanboard when syncing status
       sbCachePath = "Kanboard", --Path on Silverbullet space where the tasks will be cached
       sbCacheRefreshHours = 6, --max cache age in hours
-      kbMoveToLastColumn = false, -- move closed tasks to the last Kanboard column when syncing status
   }
 }
 ```
@@ -61,24 +64,36 @@ config.set {
 ## Usage
 
 ### slashcommands
-`/newidea` creates a new idea in the current document (e.g., ideas.md)
+
+`/idea` creates a new idea in the current document (e.g., ideas.md)
+`/getTasks` inserts a query showing all tasks created from this page
+`/getTasksByProjectId`inserts a query showing all tasks of a given project
 
 ### commands
+
 `Kanboard: Refile Project` Creates a new project from the current idea
-`Kanboard: Send Task` Sends a Silverbullet task to Kanboard 
+`Kanboard: Send Task` Sends a Silverbullet task to Kanboard
 `Kanboard: Update Cache` Updates the cache of Kanboard Tasks in Silverbullet
-`Kanboard: Syncstatus` Closes locally closed tasks on Kanboard and refreshes the cache
+`Kanboard: Sync Status` Update tasks marked as done in SB on Kanboard and refreshes the cache
 
 ### virtual pages
-`pageId:<pageId of the page>` Used to create permanent links to the orginating pages 
-that survive page renaming 
+
+`pageId:<pageId of the page>` Used to create permanent links to the orginating pages
+that survive page renaming
+
+### note
+
+The library only caches Kanboard tasks that are not closed.
 
 ## Code
+
 ```space-lua
 -----------------------------------------------------------------------
--- Package
+-- Package Library
+--
+-- reusable functions for silverbullet
 -----------------------------------------------------------------------
-library = {}
+Library = {}
 
 -----------------------------------------------------------------------
 -- generateUuid()
@@ -93,7 +108,7 @@ library = {}
 --
 --     550e8400-e29b-41d4-a716-446655440000
 -----------------------------------------------------------------------
-function library.generateUuid()
+function Library.generateUuid()
 	return ("xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx"):gsub("[xy]", function(c)
 		local v = (c == "x") and math.random(0, 15) or math.random(8, 11)
 		return string.format("%x", v)
@@ -103,10 +118,11 @@ end
 -----------------------------------------------------------------------
 -- escapePattern()
 --
--- Escape regex special characters 
+-- Escape < and >
+-- currently it seems that there is no way to escape hence it is removed
 -----------------------------------------------------------------------
-function library.escapePattern(s)
-	return (s:gsub("([%(%)%.%%%+%-%*%?%[%]%^%$])", "%%%1"))
+function Library.escapePattern(s)
+	return (s:gsub("[<>]", ""))
 end
 
 -----------------------------------------------------------------------
@@ -128,7 +144,7 @@ end
 -- This helper centralises page creation so every command behaves
 -- consistently.
 -----------------------------------------------------------------------
-function library.createPageWithText(page, text)
+function Library.createPageWithText(page, text)
 	if page == nil or page == "" then
 		return false, "No page name specified."
 	end
@@ -158,14 +174,14 @@ end
 --   false, existingValue
 --       Key already exists and force = false.
 -----------------------------------------------------------------------
-function library.setFrontmatter(key, value, force)
+function Library.setFrontmatter(key, value, force)
 	local text = editor.getText()
 
-    -- Existing frontmatter?
+	-- Existing frontmatter?
 	local fmStart, fmEnd, frontmatter = text:find("^(%-%-%-\n(.-)\n%-%-%-\n?)")
 	if frontmatter then
-        -- Key already exists?
-		local patternKey = library.escapePattern(key)
+		-- Key already exists?
+		local patternKey = Library.escapePattern(key)
 		local existing = frontmatter:match(patternKey .. ":%s*([^\n]+)")
 		if existing then
 			if not force then
@@ -179,16 +195,11 @@ function library.setFrontmatter(key, value, force)
 		return true, value
 	end
 
-    -- No frontmatter: create one
+	-- No frontmatter: create one
 	local newFrontmatter = "---\n" .. key .. ": " .. tostring(value) .. "\n" .. "---\n\n"
 	editor.setText(newFrontmatter .. text)
 	return true, value
 end
-
------------------------------------------------------------------------
--- Package
------------------------------------------------------------------------
-org = {}
 
 -----------------------------------------------------------------------
 -- currentSubtree()
@@ -218,12 +229,12 @@ org = {}
 --   - duplicate
 --   - extract
 -----------------------------------------------------------------------
-function org.currentSubtree()
+function Library.currentSubtree()
 	local text = editor.getText()
 	local cursor = editor.getCursor()
 	local start = 1
 
-  -- First heading in file?
+	-- First heading in file?
 	if not text:match("^## ") then
 		start = text:find("\n## ", 1, true)
 		if not start then
@@ -244,7 +255,7 @@ function org.currentSubtree()
 		finish = text:find("\n## ", start + 1, true)
 	end
 
-  -- Last subtree extends to end of file
+	-- Last subtree extends to end of file
 	if cursor >= start then
 		return {
 			start = start,
@@ -277,10 +288,10 @@ end
 --
 -- Returns nil if the cursor is not inside exactly one task.
 -----------------------------------------------------------------------
-function org.currentTask()
+function Library.currentTask()
 	local cursor = editor.getCursor()
 	local currpage = editor.getCurrentPage()
-	local tasks = query[[
+	local tasks = query [[
         from index.tasks()
         where page == currpage
             and pos <= cursor
@@ -288,7 +299,7 @@ function org.currentTask()
     ]]
 	if # tasks ~= 1 then
 		editor.flashNotification("Expected exactly one task, found " .. # tasks .. ".", "error")
-        -- return nil
+		-- return nil
 	end
 	local task = tasks[1]
 	return {
@@ -300,32 +311,129 @@ function org.currentTask()
 end
 
 -----------------------------------------------------------------------
--- Package
+-- Command:refileSubtree
+--
+-- Moves the current subtree into its own page.
+--
+-- Current implementation (safe mode):
+--
+--   1. Determine the subtree surrounding the cursor.
+--   2. Prompt for a destination page.
+--   3. Create the destination page.
+--   4. Insert a backlink ("Moved to: [[Page]]") below the heading.
+--
+-- The original subtree is intentionally left untouched while the command
+-- is being tested.
+--
+-- Planned final behaviour:
+--
+--   5. Remove the original subtree after successful page creation,
+--      leaving only the backlink in the source document.
 -----------------------------------------------------------------------
-kanboard = {}
+command.define {
+	name = "refileSubtree",
+	run = function()
+		local subtree = Library.currentSubtree()
+		if not subtree then
+			editor.flashNotification("No subtree found.", "error")
+			return
+		end
+		local page = editor.prompt("Move subtree to page:", "Project/New project " .. os.date("%Y-%m-%d"))
+		local ok, err = Library.createPageWithText(page, subtree.text)
+		if not ok then
+			editor.flashNotification(err, "error")
+			return
+		end
+		local text = editor.getText()
+		local _, headingEnd = text:find("\n", subtree.start, true)
+		if not headingEnd then
+			headingEnd = # text
+		end
+		editor.replaceRange(
+			headingEnd - 1, subtree.finish - 1, "\nMoved to: [[" .. page .. "]]")
+		editor.flashNotification("Subtree copied to '" .. page .. "'.")
+	end
+}
 
 -----------------------------------------------------------------------
--- taskToMarkdown(task)
+-- slashcommand:idea
 --
--- Converts a Kanboard task into a SilverBullet task.
+-- Slash command used to capture a new idea with minimal friction.
+--
+-- Inserts a new level-2 heading at the current cursor position together
+-- with a creation timestamp. The cursor is positioned on the heading so
+-- the user can immediately type the title.
+--
+-- Intended workflow:
+--   /idea
+--   -> type title
+--   -> continue writing below
+-----------------------------------------------------------------------
+slashCommand.define {
+	name = "idea",
+	run = function()
+		local text = string.format("## |^|\n[created: %s]", os.date("%Y-%m-%d %H:%M"))
+		editor.insertAtCursor(text, false, true)
+	end
+}
+
+-----------------------------------------------------------------------
+-- Command: add page id
+-----------------------------------------------------------------------
+command.define {
+	name = "Page: Add id",
+	run = function()
+		local uuid = Library.generateUuid()
+		local ok, value = Library.setFrontmatter("pageId", uuid, false)
+		if ok then
+			editor.flashNotification("pageId = " .. value)
+		else
+			editor.flashNotification("Existing pageId = " .. value)
+		end
+	end
+}
+
+-----------------------------------------------------------------------
+-- Get page by pageId
+-----------------------------------------------------------------------
+virtualPage.define {
+	pattern = "pageId:(.+)",
+	run = function(tgtpageId)
+		local pages = query [[
+            from index.pages()
+            where pageId == tgtpageId
+        ]]
+		if # pages == 0 then
+			return "# Page not found\n\nNo page with pageId `" .. tgtpageId .. "`."
+		end
+		if # pages > 1 then
+			return "# Duplicate pageId\n\nMore than one page has pageId `" .. tgtpageId .. "`.\n"
+		end
+		local pageName = pages[1].name
+		return "# Page with PageId " ..
+			tgtpageId ..
+			"\n\nRedirecting... if the redirect does not work click here:  [[" ..
+			pageName .. "]] .. ${editor.navigate(\"" .. pageName .. "@1\")}\n"
+	end
+}
+-----------------------------------------------------------------------
+-- Package
+-----------------------------------------------------------------------
+Kanboard = {}
+
+-----------------------------------------------------------------------
+-- queryTask(task)
+--
+-- Converts a Kanboard task into a reference to a cached task.
 --
 -- Expected task fields:
 --   id
---   title
---   status      (" ", "X", or custom status)
---   link        (Permanent Kanboard link)
 --
 -- Returns:
---   Markdown task as a single line.
+--   Query returning the task
 -----------------------------------------------------------------------
-function kanboard.taskToMarkdown(task)
-	local status = " "
-	if task.is_active == "0" then
-		status = "closed"
-	else
-		status = "open"
-	end
-	return string.format("${query[[from index.tasks() where kbId == %s select templates.taskItem(_)]]}", task.id)
+function Kanboard.queryTask(taskId)
+	return string.format("${query[[from index.tasks() where kbId == %s select templates.taskItem(_)]]}", taskId)
 end
 
 -----------------------------------------------------------------------
@@ -338,7 +446,7 @@ end
 --
 -- Raises an error if the RPC call fails.
 -----------------------------------------------------------------------
-function kanboard.rpc(method, params)
+function Kanboard.rpc(method, params)
 	local cfg = config.get("kanboard")
 	local rpcUrl = cfg.kbBaseUrl:gsub("/+$", "")
 	if not rpcUrl:find("jsonrpc%.php$") then
@@ -370,25 +478,15 @@ end
 --
 -- In case of failure an error notification is shown.
 -----------------------------------------------------------------------
-function kanboard.checkResponse(response)
+function Kanboard.checkResponse(response)
+	if config.get("kanboard").debug then
+		if response.ok then
+			editor.flashNotification("Kanboarddebug: HTTP Response OK", "info")
+		else
+			editor.flashNotification("Kanboarddebug: " .. tostring(response.status), "info")
+		end
+	end
 	return response.ok
-end
-
------------------------------------------------------------------------
--- replaceCurrentTask(task, kbTask)
---
--- Replaces a SilverBullet task with its Kanboard representation.
---
--- Parameters:
---   task
---       Result returned by org.currentTask().
---
---   kbTask
---       Task returned by Kanboard getTask().
------------------------------------------------------------------------
-function kanboard.replaceCurrentTask(task, kbTask)
-	editor.replaceRange(
-        task.start, task.finish, kanboard.taskToMarkdown(kbTask))
 end
 
 -----------------------------------------------------------------------
@@ -402,87 +500,135 @@ end
 --   3. Create the task in Kanboard.
 --   4. Close the task if required.
 --   5. Update the KB task with a permanent link to the SB page.
---   6. Retrieve the task (to obtain its permanent URL).
---   7. Replace the original task with a linked task.
---   8. Persist the pageId in the page frontmatter.
---   9. Add the task to the local cache.
+--   6. Replace the original task with a linked task.
+--   7. Persist the pageId in the page frontmatter.
+--   8. Add the task to the local cache.
 -----------------------------------------------------------------------
-function kanboard.sendTask(projectId)
-	projectId = projectId or config.get("kanboard").kbProjectId
-  
-    -- 1. Read the current task.
-	local task = org.currentTask()
+function Kanboard.sendTask(projectId, swimlaneId)
+	-- 1. Read the current task.
+	local task = Library.currentTask()
 	if not task then
 		editor.flashNotification("No task found.", "error")
 		return
 	end
-  
-    -- 2. Get a pageId for the current page.
+
+	-- 2. Get a pageId for the current page.
 	local pageId = editor.getCurrentPageMeta().pageId
 	if pageId == nil or pageId == "" then
-		pageId = library.generateUuid()
+		pageId = Library.generateUuid()
 	end
-  
-    -- 3. Create the task in Kanboard.
-	local response = kanboard.rpc("createTask", {
+
+	-- 3. Create the task in Kanboard.
+	params = {
 		title = task.text,
 		description = "Task Status in SB at creation: [" .. task.status .. "]",
-		reference = pageId, -- not sure if it works
+		reference = pageId,
 		project_id = projectId
-	})
+	}
+	if swimlaneId ~= nil and swimlaneId ~= "" and tostring(swimlaneId) ~= "0" then
+		params.swimlane_id = swimlaneId
+	end
+	local response = Kanboard.rpc("createTask", params)
 	local taskId
-	if kanboard.checkResponse(response) then
+	if Kanboard.checkResponse(response) then
 		taskId = response.body.result
 	else
 		editor.flashNotification("Unable to create Kanboard task.", "error")
 		return
 	end
 
-    -- 4. Close the task if required.
+	-- 4. Close the task if required.
 	if task.status == "x" or task.status == "X" then
-		response = kanboard.rpc("closeTask", {
+		response = Kanboard.rpc("closeTask", {
 			task_id = taskId
 		})
-		if not kanboard.checkResponse(response) then
+		if not Kanboard.checkResponse(response) then
 			editor.flashNotification("Unable to close Kanboard task.", "error")
 			return
 		end
 	end
 
-    -- 5. Update the KB task with a permanent link to the SB page.
-	response = kanboard.rpc("createExternalTaskLink", {
+	-- 5. Update the KB task with a permanent link to the SB page.
+	response = Kanboard.rpc("createExternalTaskLink", {
 		task_id = taskId,
 		url = config.get("kanboard").sbBaseUrl .. "/pageId:" .. pageId,
 		dependency = "related",
 		type = "weblink",
 		title = "SB Context"
 	})
-	if not kanboard.checkResponse(response) then
+	if not Kanboard.checkResponse(response) then
 		editor.flashNotification("Unable to link Kanboard task to SilverBullet.", "error")
 		return
 	end
 
-    -- 6. Retrieve the task (to obtain its permanent URL).
-	response = kanboard.rpc("getTask", {
+	-- 6. Replace the original task with a linked task.
+	editor.replaceRange(
+		task.start, task.finish, Kanboard.queryTask(taskId))
+
+	-- 7. Persist the pageId in the page frontmatter.
+	Library.setFrontmatter("pageId", pageId, false)
+
+	-- 8. Add the task to the local cache.
+	local kbTaskResponse = Kanboard.rpc("getTask", {
 		task_id = taskId
 	})
-	local kbTask
-	if kanboard.checkResponse(response) then
-		kbTask = response.body.result
-	else
+	if not Kanboard.checkResponse(kbTaskResponse) then
 		editor.flashNotification("Unable to retrieve Kanboard task.", "error")
 		return
 	end
-
-    -- 7. Replace the original task with a linked task.
-	kanboard.replaceCurrentTask(task, kbTask)
-
-    -- 8. Persist the pageId in the page frontmatter.
-	library.setFrontmatter("pageId", pageId, false)
-
-	-- 9. Add the task to the local cache.
-	kanboard.updateCache(projectId, kbTask)
+	Kanboard.updateCache(projectId, kbTaskResponse.body.result)
 	editor.flashNotification("Task sent to Kanboard.")
+end
+
+-----------------------------------------------------------------------
+-- getReferenceData(projectId)
+--
+-- get reference data for given projectId.
+--
+-- Returns a table with project, columns and categories.
+-----------------------------------------------------------------------
+function Kanboard.getReferenceData(projectId)
+	-- Retrieve columns names.
+	local response = Kanboard.rpc("getColumns", {
+		project_id = projectId
+	})
+	local columns = {}
+	if Kanboard.checkResponse(response) then
+		columns = response.body.result
+	else
+		editor.flashNotification("Unable to retrieve columns.", "error")
+		return
+	end
+
+	-- Retrieve categories names.
+	response = Kanboard.rpc("getAllCategories", {
+		project_id = projectId
+	})
+	local categories = {}
+	if Kanboard.checkResponse(response) then
+		categories = response.body.result
+	else
+		editor.flashNotification("Unable to retrieve categories.", "error")
+		return
+	end
+
+	-- Retrieve swimlanes names.
+	local swimlaneResponse = Kanboard.rpc("getAllSwimlanes", {
+		project_id = projectId
+	})
+	local swimlanes = {}
+	if Kanboard.checkResponse(swimlaneResponse) then
+		swimlanes = swimlaneResponse.body.result
+	else
+		editor.flashNotification("Unable to retrieve swimlanes.", "error")
+		return
+	end
+
+	return {
+		columns = columns,
+		categories = categories,
+		swimlanes = swimlanes,
+	}
 end
 
 -----------------------------------------------------------------------
@@ -500,103 +646,77 @@ end
 -- RPC per task. Incremental updates are optimized for the common case
 -- where only one task has changed.
 -----------------------------------------------------------------------
-function kanboard.updateCache(projectId, kbTask)
-	projectId = projectId or config.get("kanboard").kbProjectId
-
-    -- Retrieve project.
-	local response = kanboard.rpc("getProjectById", {
+function Kanboard.updateCache(projectId, kbTask)
+	-- Retrieve project.
+	local response = Kanboard.rpc("getProjectById", {
 		project_id = projectId
 	})
 	local project
-	if kanboard.checkResponse(response) then
+	if Kanboard.checkResponse(response) then
 		project = response.body.result
 	else
 		editor.flashNotification("Unable to retrieve project.", "error")
 		return
 	end
 
-    -- Retrieve columns names.
-	response = kanboard.rpc("getColumns", {
-		project_id = projectId
-	})
-	local columns
-	if kanboard.checkResponse(response) then
-		columns = {}
-		for _, column in ipairs(response.body.result) do
-			columns[column.id] = column.title
-		end
-	else
-		editor.flashNotification("Unable to retrieve columns.", "error")
-		return
-	end
-
-    -- Retrieve categories names.
-	response = kanboard.rpc("getAllCategories", {
-		project_id = projectId
-	})
-	local categories
-	if kanboard.checkResponse(response) then
-		categories = {}
-		for _, category in ipairs(response.body.result) do
-			categories[category.id] = category.name
-		end
-	else
-		editor.flashNotification("Unable to retrieve categories.", "error")
-		return
-	end
+	local reference = Kanboard.getReferenceData(projectId)
 
 	-- Decide between full rebuild and incremental update.
-	local cachePage = config.get("kanboard").sbCachePath .. "/" .. project.name
-	local cacheMeta = query[[from index.subPages(config.get("kanboard").sbCachePath) where projectId == projectId]]
-	if (cacheMeta == nil) or (kbTask == nil) then
-		kanboard.rebuildCache(project, cachePage, columns, categories)
+	-- Use the project ID so cache pages remain unique even when names collide.
+	local cachePage = config.get("kanboard").sbCachePath .. "/" .. tostring(project.id)
+	local cacheMeta = query [[from index.subPages(config.get("kanboard").sbCachePath) where projectId == projectId]]
+	if (cacheMeta == nil) or (#cacheMeta == 0) or (kbTask == nil) then
+		Kanboard.rebuildCache(project, cachePage, reference)
 		return
 	else
 		local age = os.time() - (tonumber(cacheMeta[1].lastSync) or 0)
 		if (config.get("kanboard").debug) then
-			editor.flashNotification("Kanboarddebug: cache Age =" .. age .. " now =" .. os.time() .. " lastSync =" .. cacheMeta[1].lastSync)
+			editor.flashNotification("Kanboarddebug: cache Age =" ..
+				age .. " now =" .. os.time() .. " lastSync =" .. cacheMeta[1].lastSync)
 		end
 		if age > config.get("kanboard").sbCacheRefreshHours * 3600 then
-			kanboard.rebuildCache(project, cachePage, columns, categories)
+			Kanboard.rebuildCache(project, cachePage, reference)
 			return
 		end
 	end
-	kanboard.updateCacheEntry(
-        kbTask, cachePage, columns, categories)
+	Kanboard.updateCacheEntry(kbTask, cachePage, reference)
 end
-
 
 -----------------------------------------------------------------------
 -- rebuildCache(project, cachePage, columns, categories)
 --
 -- Rebuilds a project's cache from Kanboard.
 -----------------------------------------------------------------------
-function kanboard.rebuildCache(project, cachePage, columns, categories)
-    -- Retrieve all tasks.
-	local response = kanboard.rpc("getAllTasks", {
+function Kanboard.rebuildCache(project, cachePage, reference)
+	-- Retrieve all tasks.
+	local response = Kanboard.rpc("getAllTasks", {
 		project_id = project.id
 	})
 	local tasks
-	if kanboard.checkResponse(response) then
+	if Kanboard.checkResponse(response) then
 		tasks = response.body.result
 	else
 		editor.flashNotification("Unable to retrieve tasks.", "error")
 		return
 	end
 
-    -- Build page.
+	-- Build page.
 	local page = {}
 	table.insert(page, "---")
-	table.insert(page, "pageId: " .. library.generateUuid())
+	table.insert(page, "pageId: " .. Library.generateUuid())
 	table.insert(page, "projectId: " .. project.id)
+	table.insert(page, "projectName: " .. project.name)
+	table.insert(page, "swimlanes: \n" .. yaml.stringify(reference.swimlanes))
+	table.insert(page, "columns: \n" .. yaml.stringify(reference.columns))
+	table.insert(page, "categories: \n" .. yaml.stringify(reference.categories))
+	table.insert(page, "tags: \n- KanboardManaged\n- meta")
 	table.insert(page, "lastSync: " .. os.time())
 	table.insert(page, "---")
 	table.insert(page, "")
 	table.insert(page, "[Kanban board](" .. project.url.board .. ")")
 	table.insert(page, "")
 	for _, task in ipairs(tasks) do
-		local entry = kanboard.buildCacheEntry(
-            task, columns, categories)
+		local entry = Kanboard.buildCacheEntry(task, reference)
 		if not entry then
 			return
 		end
@@ -604,8 +724,9 @@ function kanboard.rebuildCache(project, cachePage, columns, categories)
 		table.insert(page, "")
 	end
 	space.writePage(
-        cachePage, table.concat(page, "\n"))
-	editor.flashNotification("Kanboard: Cache project " .. project.id .. " " .. project.name .. " rebuilt (" .. # tasks .. " tasks).")
+		cachePage, table.concat(page, "\n"))
+	editor.flashNotification("Kanboard: Cache project " ..
+		project.id .. " " .. project.name .. " rebuilt (" .. # tasks .. " tasks).")
 end
 
 -----------------------------------------------------------------------
@@ -613,22 +734,16 @@ end
 --
 -- Updates or appends a single cache entry.
 -----------------------------------------------------------------------
-function kanboard.updateCacheEntry(kbTask, cachePage, columns, categories)
-	local entry = kanboard.buildCacheEntry(
-        kbTask, columns, categories)
+function Kanboard.updateCacheEntry(kbTask, cachePage, reference)
+	local entry = Kanboard.buildCacheEntry(kbTask, reference)
 	if not entry then
 		return
 	end
 
-    -------------------------------------------------------------------
-    -- Locate the cached task.
-    --
-    -- TODO:
-    -- Replace the query below with the final SilverBullet query once
-    -- validated. The query should return at most one task together with
-    -- its pos/toPos.
-    -------------------------------------------------------------------
-	local tasks = query[[
+	-------------------------------------------------------------------
+	-- Locate the cached task.
+	-------------------------------------------------------------------
+	local tasks = query [[
         from index.tag "task"
         where page == cachePage
           and kbId == tostring(kbTask.id)
@@ -637,8 +752,7 @@ function kanboard.updateCacheEntry(kbTask, cachePage, columns, categories)
 	if # tasks == 0 then
 		text = text .. "\n" .. entry .. "\n"
 	elseif # tasks == 1 then
-
-        -- Replace.
+		-- Replace.
 		local task = tasks[1]
 		text = text:sub(1, task.pos - 1) .. entry .. text:sub(task.toPos + 1)
 	else
@@ -648,42 +762,122 @@ function kanboard.updateCacheEntry(kbTask, cachePage, columns, categories)
 	space.writePage(cachePage, text)
 end
 
+-----------------------------------------------------------------------
+-- getCategory(reference, categoryId)
+--
+-- Retrieves a category by its ID from the reference data.
+-----------------------------------------------------------------------
+function getCategory(reference, categoryId)
+	if categoryId ~= "0" then
+		_, category = table.find(reference.categories, function(category)
+			return category.id == categoryId
+		end)
+		return category
+	end
+	return nil
+end
 
 -----------------------------------------------------------------------
--- buildCacheEntry(task, columns, categories)
+-- getSwimlane(reference, swimlaneId)
+--
+-- Retrieves a swimlane by its ID from the reference data.
+-----------------------------------------------------------------------
+function getSwimlane(reference, swimlaneId)
+	if swimlaneId ~= "0" then
+		_, swimlane = table.find(reference.swimlanes, function(swimlane)
+			return swimlane.id == swimlaneId
+		end)
+		return swimlane
+	end
+	return nil
+end
+
+-----------------------------------------------------------------------
+-- getSwimlaneAtPosition(reference, position)
+--
+-- Retrieves a swimlane by its Position from the reference data.
+-----------------------------------------------------------------------
+function getSwimlaneAtPosition(reference, position)
+	if position ~= "0" then
+		_, swimlane = table.find(reference.swimlanes, function(swimlane)
+			return swimlane.position == position
+		end)
+		return swimlane
+	end
+	return nil
+end
+
+-----------------------------------------------------------------------
+-- getColumn(reference, columnId)
+--
+-- Retrieves a column by its ID from the reference data.
+-----------------------------------------------------------------------
+function getColumn(reference, columnId)
+	if columnId ~= "0" then
+		_, column = table.find(reference.columns, function(column)
+			return column.id == columnId
+		end)
+		return column
+	end
+	return nil
+end
+
+-----------------------------------------------------------------------
+-- getColumnAtPosition(reference, position)
+--
+-- Retrieves a column by its Position from the reference data.
+-----------------------------------------------------------------------
+function getColumnAtPosition(reference, position)
+	if position ~= "0" then
+		_, column = table.find(reference.columns, function(column)
+			return column.position == position
+		end)
+		return column
+	end
+	return nil
+end
+
+-----------------------------------------------------------------------
+-- buildCacheEntry(task, reference)
 --
 -- Builds the canonical representation of a Kanboard task in the local
 -- cache.
 --
 -- This is the single point of maintenance for the cache format.
+--
+-- input: task: Kanboard task objects
+--        reference: table with reference data (in particular
+--                   columns and categories)
 -----------------------------------------------------------------------
-function kanboard.buildCacheEntry(task, columns, categories)
-
-    -- Retrieve tags.
-	local response = kanboard.rpc("getTaskTags", {
+function Kanboard.buildCacheEntry(task, reference)
+	-- Retrieve tags.
+	local response = Kanboard.rpc("getTaskTags", {
 		task_id = task.id
 	})
 	local tags
-	if kanboard.checkResponse(response) then
+	if Kanboard.checkResponse(response) then
 		tags = response.body.result
 	else
 		editor.flashNotification("Unable to retrieve task tags.", "error")
 		return nil
 	end
 
-    -- Build status.
+	-- Build status.
 	local status = " "
 	if task.is_active == "0" then
 		status = "x"
 	end
-
-    -- Build tags.
 	local tagList = {}
+	local attributes = {}
+
+	-- Build tags.
 	if task.category_id ~= "0" then
-		local category = categories[task.category_id]
+		local category = getCategory(reference, task.category_id)
 		if category then
-			category = category:gsub("[<>]", "")
-			table.insert(tagList, "#<" .. category .. ">")
+			table.insert(attributes, "[category: " .. category.name .. "]")
+			table.insert(attributes, "[categoryId: " .. task.category_id .. "]")
+			local categoryName = category.name:gsub("[<>]", "")
+			table.insert(tagList, "#<category-" .. categoryName .. ">")
 		end
 	end
 	for _, tag in pairs(tags) do
@@ -691,169 +885,269 @@ function kanboard.buildCacheEntry(task, columns, categories)
 		table.insert(tagList, "#<" .. tag .. ">")
 	end
 
-    -- Build attributes.
-	local attributes = {}
+	-- Build attributes.
 	table.insert(attributes, "[kbId: " .. task.id .. "]")
-	if columns[task.column_id] then
-		table.insert(
-            attributes, "[column: " .. columns[task.column_id] .. "]")
+	local column = getColumn(reference, task.column_id)
+	if column then
+		table.insert(attributes, "[column: " .. column.title .. "]")
 	end
 	if task.project_id ~= "0" then
 		table.insert(
-            attributes, "[projectId: " .. task.project_id .. "]")
+			attributes, "[projectId: " .. task.project_id .. "]")
 	end
 	if task.date_due ~= "0" then
 		table.insert(
-            attributes, "[due: " .. os.date("%Y-%m-%d", tonumber(task.date_due)) .. "]")
+			attributes, "[due: " .. os.date("%Y-%m-%d", tonumber(task.date_due)) .. "]")
 	end
 	if task.score ~= "0" then
 		table.insert(
-            attributes, "[priority: " .. task.score .. "]")
+			attributes, "[priority: " .. task.score .. "]")
 	end
 	if task.position ~= "0" then
 		table.insert(
-            attributes, "[position: " .. task.position .. "]")
+			attributes, "[position: " .. task.position .. "]")
 	end
 	if task.swimlane_id ~= "0" then
-		table.insert(
-            attributes, "[swimlaneId: " .. task.swimlane_id .. "]")
+		local swimlane = getSwimlane(reference, task.swimlane_id)
+		if swimlane then
+			table.insert(
+				attributes, "[swimlaneId: " .. task.swimlane_id .. "]")
+			table.insert(
+				attributes, "[swimlaneName: " .. swimlane.name .. "]")
+		end
 	end
 	if task.recurrence_status ~= "0" then
 		table.insert(
-            attributes, "[recurrence: " .. task.recurrence_status .. "]")
+			attributes, "[recurrence: " .. task.recurrence_status .. "]")
 	end
 	if task.reference ~= "" then
 		table.insert(
-            attributes, "[pageId: " .. task.reference .. "]")
+			attributes, "[pageId: " .. task.reference .. "]")
 	end
-	return string.format("* [%s] %s ([KB](%s)) %s %s", status, task.title, task.url, table.concat(tagList, " "), table.concat(attributes, " "))
+	return string.format("* [%s] %s ([KB](%s)) %s %s", status, task.title, task.url, table.concat(tagList, " "),
+		table.concat(attributes, " "))
 end
 
 -----------------------------------------------------------------------
--- Command:refileSubtree
+-- findLastColumnId(columns)
 --
--- Moves the current subtree into its own page.
---
--- Current implementation (safe mode):
---
---   1. Determine the subtree surrounding the cursor.
---   2. Prompt for a destination page.
---   3. Create the destination page.
---   4. Insert a backlink ("Moved to: [[Page]]") below the heading.
---
--- The original subtree is intentionally left untouched while the command
--- is being tested.
---
--- Planned final behaviour:
---
---   5. Remove the original subtree after successful page creation,
---      leaving only the backlink in the source document.
+-- Returns the ID of the last column in the provided Kanboard column list.
 -----------------------------------------------------------------------
-command.define{
-	name = "refileSubtree",
-	run = function()
-		local subtree = org.currentSubtree()
-		if not subtree then
-			editor.flashNotification("No subtree found.", "error")
-			return
+function Kanboard.findLastColumnId(columns)
+	local lastColumnId = nil
+	local maxPosition = 0
+	for _, column in ipairs(columns) do
+		local position = tonumber(column.position) or 0
+		if position >= maxPosition then
+			maxPosition = position
+			lastColumnId = column.id
 		end
-		local page = editor.prompt("Move subtree to page:", "Project/New project " .. os.date("%Y-%m-%d"))
-		local ok, err = library.createPageWithText(page, subtree.text)
-		if not ok then
-			editor.flashNotification(err, "error")
-			return
-		end
-		local text = editor.getText()
-		local _, headingEnd = text:find("\n", subtree.start, true)
-		if not headingEnd then
-			headingEnd = # text
-		end
-		editor.replaceRange(
-      headingEnd - 1, subtree.finish - 1, "\nMoved to: [[" .. page .. "]]")
-		editor.flashNotification("Subtree copied to '" .. page .. "'.")
 	end
-}
+	return lastColumnId
+end
 
 -----------------------------------------------------------------------
--- slashcommand:idea
+-- closeTasks(projectId)
 --
--- Slash command used to capture a new idea with minimal friction.
---
--- Inserts a new level-2 heading at the current cursor position together
--- with a creation timestamp. The cursor is positioned on the heading so
--- the user can immediately type the title.
---
--- Intended workflow:
---   /idea
---   -> type title
---   -> continue writing below
+-- Closes tasks marked as done in the cached page on Kanboard
+-- This can be achieved by closing the tasks and/or moving them to the last column.
+-- see config.kbCloseDone and config.kbMoveDone
 -----------------------------------------------------------------------
-slashCommand.define{
-	name = "Idea: New",
-	run = function()
-		text = string.format("## |^|\n[created: %s]", os.date("%Y-%m-%d %H:%M"))
-		editor.insertAtCursor(text, false, true)
+function Kanboard.closeTasks(projectId)
+	local cfg = config.get("kanboard")
+	if not cfg.kbCloseDone and not cfg.kbMoveDone then
+		editor.flashNotification("Kanboard: No sync action configured (kbCloseDone and kbMoveDone are both false).",
+			"info")
+		return
 	end
-}
 
------------------------------------------------------------------------
--- Command: add page id
------------------------------------------------------------------------
-command.define{
-	name = "Page: Add id",
-	run = function()
-		local uuid = library.generateUuid()
-		local ok, value = library.setFrontmatter("pageId", uuid, false)
-		if ok then
-			editor.flashNotification("pageId = " .. value)
-		else
-			editor.flashNotification("Existing pageId = " .. value)
+	local response = Kanboard.rpc("getProjectById", {
+		project_id = projectId
+	})
+	if not Kanboard.checkResponse(response) then
+		editor.flashNotification("Unable to retrieve project.", "error")
+		return
+	end
+	local project = response.body.result
+
+	local cachePage = cfg.sbCachePath .. "/" .. tostring(project.id)
+	local closedTasks = query [[from t=tags.task where t.page == "Kanboard/To-Do" and t.done]]
+	if #closedTasks == 0 then
+		editor.flashNotification("Kanboard: No closed tasks found to sync.", "info")
+		return
+	end
+
+	local lastColumnId = nil
+	if cfg.kbMoveDone then
+		local columnsResponse = Kanboard.rpc("getColumns", { project_id = projectId })
+		if not Kanboard.checkResponse(columnsResponse) then
+			editor.flashNotification("Unable to retrieve columns.", "error")
+			return
+		end
+		local columns = columnsResponse.body.result
+		lastColumnId = Kanboard.findLastColumnId(columns)
+	end
+
+	local closedCount = 0
+	local movedCount = 0
+	local failedCount = 0
+
+	for _, task in ipairs(closedTasks) do
+		if lastColumnId then
+			local moveResponse = Kanboard.rpc("moveTaskPosition", {
+				project_id = projectId,
+				swimlane_id = task.swimlaneId,
+				task_id = task.kbId,
+				column_id = lastColumnId,
+				position = 1
+			})
+			if Kanboard.checkResponse(moveResponse) then
+				movedCount = movedCount + 1
+			else
+				failedCount = failedCount + 1
+			end
+		end
+		if cfg.kbCloseDone then
+			local closeResponse = Kanboard.rpc("closeTask", { task_id = task.kbId })
+			if Kanboard.checkResponse(closeResponse) then
+				closedCount = closedCount + 1
+			else
+				failedCount = failedCount + 1
+			end
 		end
 	end
-}
+
+	if closedCount > 0 or movedCount > 0 then
+		Kanboard.updateCache(projectId)
+		editor.flashNotification("Kanboard: Updated tasks: Closed " .. closedCount .. ", Moved " .. movedCount .. ".")
+	end
+	if failedCount > 0 then
+		editor.flashNotification("Kanboard: Failed to sync " .. failedCount .. " task(s).")
+	end
+end
 
 -----------------------------------------------------------------------
 -- Send current task to Kanboard.
 -----------------------------------------------------------------------
-command.define{
-	name = "kanboard: Send Task",
+command.define {
+	name = "Kanboard: Send Task",
 	mac = "Ctrl-Cmd-a",
 	key = "Ctrl-Alt-a",
 	run = function()
-		local projectId = editor.getCurrentPageMeta().kbProject
-		kanboard.sendTask(projectId)
+		local pageMeta = editor.getCurrentPageMeta()
+		local projectId = pageMeta.kbProjectId or config.get("kanboard").kbProjectId
+		Kanboard.sendTask(projectId, pageMeta.kbSwimlaneId)
 	end
 }
+
+-----------------------------------------------------------------------
+-- Update all project caches by cycling through all Kanboard projects.
+-----------------------------------------------------------------------
+function Kanboard.updateAllCaches()
+	local response = Kanboard.rpc("getMyProjects", {})
+	if not Kanboard.checkResponse(response) then
+		editor.flashNotification("Unable to retrieve Kanboard projects.", "error")
+		return
+	end
+	local projects = response.body.result
+	if not projects or #projects == 0 then
+		editor.flashNotification("Kanboard: No projects found.", "info")
+		return
+	end
+
+	for _, project in ipairs(projects) do
+		if project.id then
+			Kanboard.updateCache(project.id)
+		end
+	end
+
+	editor.flashNotification("Kanboard: Updated cache for " .. #projects .. " project(s).")
+end
 
 -----------------------------------------------------------------------
 -- Rebuild the Kanboard cache.
 -----------------------------------------------------------------------
-command.define{
-	name = "kanboard: Update Cache",
+command.define {
+	name = "Kanboard: Update Cache",
 	run = function()
-		local projectId = editor.getCurrentPageMeta().kbProject
-		kanboard.updateCache(projectId)
+		Kanboard.updateAllCaches()
 	end
 }
 
 -----------------------------------------------------------------------
--- Get page by pageId
+-- Remove Kanboard cache pages tagged as managed by this Library.
 -----------------------------------------------------------------------
-virtualPage.define{
-	pattern = "pageId:(.+)",
-	run = function(tgtpageId)
-		local pages = query[[
-            from index.pages()
-            where pageId == tgtpageId
-        ]]
-		if # pages == 0 then
-			return "# Page not found\n\nNo page with pageId `" .. tgtpageId .. "`."
+command.define {
+	name = "Kanboard: Remove Cache",
+	run = function()
+		local pages = query [[from p = index.pages()
+			where table.includes(p.tags, "KanboardManaged")
+			]]
+		if not pages or #pages == 0 then
+			editor.flashNotification("No Kanboard cache pages found.", "info")
+			return
 		end
-		if # pages > 1 then
-			return "# Duplicate pageId\n\nMore than one page has pageId `" .. tgtpageId .. "`.\n"
+
+		local confirmed = editor.confirm(
+			"Delete " .. #pages .. " Kanboard cache page(s)?",
+			false
+		)
+		if not confirmed then
+			return
 		end
-		local pageName = pages[1].name
-		return "# Page with PageId " .. tgtpageId .. "\n\nRedirecting... if the redirect does not work click here:  [[" .. pageName .. "]] .. ${editor.navigate(\"" .. pageName .. "@1\")}\n"
+
+		for _, page in ipairs(pages) do
+			local ok, err = pcall(function()
+				space.deletePage(page.name)
+			end)
+			if not ok then
+				editor.flashNotification("Unable to delete page '" .. page.name .. "': " .. tostring(err), "error")
+			end
+		end
+
+		editor.flashNotification("Removed " .. #pages .. " Kanboard cache page(s).")
 	end
 }
+
+-----------------------------------------------------------------------
+-- Sync locally closed Kanboard tasks.
+-----------------------------------------------------------------------
+command.define {
+	name = "Kanboard: Sync Status",
+	run = function()
+		local projectId = editor.getCurrentPageMeta().kbProjectId
+		Kanboard.closeTasks(projectId)
+	end
+}
+
+-----------------------------------------------------------------------
+-- slashcommand:get Tasks by PageId
+--
+-- Slash command used to retrieve tasks from Kanboard.
+-----------------------------------------------------------------------
+slashCommand.define {
+	name = "getTasks",
+	run = function()
+		local meta = editor.getCurrentPageMeta()
+		local text = "${query[[from index.tasks() where pageId == \"" ..
+			meta.pageId .. "\" select templates.taskItem(_)]]}"
+		editor.insertAtCursor(text, false, false)
+	end
+}
+
+-----------------------------------------------------------------------
+-- slashcommand:get Tasks by ProjectId
+--
+-- Slash command used to retrieve tasks from Kanboard.
+-----------------------------------------------------------------------
+slashCommand.define {
+	name = "getTasksByProjectId",
+	run = function()
+		local meta = editor.getCurrentPageMeta()
+		local text = "${query[[from index.tasks() where projectId == \"" ..
+			meta.kbProjectId .. "\" select templates.taskItem(_)]]}"
+		editor.insertAtCursor(text, false, false)
+	end
+}
+
 ```
