@@ -170,6 +170,18 @@ end
 -- Returns a table with project, columns and categories.
 -----------------------------------------------------------------------
 function Kanboard.getReferenceData(projectId)
+    -- Retrieve project.
+	local response = Kanboard.rpc("getProjectById", {
+		project_id = projectId
+	})
+	local project
+	if Kanboard.checkResponse(response) then
+		project = response.body.result
+	else
+		editor.flashNotification("Unable to retrieve project.", "error")
+		return
+	end
+
 	-- Retrieve columns names.
 	local response = Kanboard.rpc("getColumns", {
 		project_id = projectId
@@ -288,6 +300,7 @@ function Kanboard.rebuildCache(project, cachePage, reference)
 	table.insert(page, "pageId: " .. Library.generateUuid())
 	table.insert(page, "projectId: " .. project.id)
 	table.insert(page, "projectName: " .. project.name)
+	table.insert(page, "project: \n" .. yaml.stringify(project))
 	table.insert(page, "swimlanes: \n" .. yaml.stringify(reference.swimlanes))
 	table.insert(page, "columns: \n" .. yaml.stringify(reference.columns))
 	table.insert(page, "categories: \n" .. yaml.stringify(reference.categories))
