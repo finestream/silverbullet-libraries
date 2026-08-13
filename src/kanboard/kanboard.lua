@@ -476,6 +476,7 @@ function Kanboard.buildCacheEntry(task, reference)
 	if task.project_id ~= "0" then
 		table.insert(
 			attributes, "[projectId: " .. task.project_id .. "]")
+			attributes, "[projectName: " .. reference.project.name .. "]")
 	end
 	if task.date_due ~= "0" then
 		table.insert(
@@ -726,8 +727,8 @@ slashCommand.define {
 	name = "getTasksByProjectId",
 	run = function()
 		local meta = editor.getCurrentPageMeta()
-		local text = "${query[[from index.tasks() where projectId == \"" ..
-			meta.kbProjectId .. "\" select templates.taskItem(_)]]}"
+		local text = "${query[[from index.tasks() where projectId == " ..
+			meta.kbProjectId .. " select templates.taskItem(_)]]}"
 		editor.insertAtCursor(text, false, false)
 	end
 }
