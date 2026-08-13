@@ -74,5 +74,6 @@ that survive page renaming
 ### note
 
 The library only caches Kanboard tasks that are not closed.
+The library works with (<<<https://github.com/Mr-xRed/silverbullet-libraries/blob/main/TaskManager.md)[Taskmanager>]
 
 ## Code

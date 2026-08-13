@@ -170,7 +170,7 @@ end
 -- Returns a table with project, columns and categories.
 -----------------------------------------------------------------------
 function Kanboard.getReferenceData(projectId)
-    -- Retrieve project.
+	-- Retrieve project.
 	local response = Kanboard.rpc("getProjectById", {
 		project_id = projectId
 	})
@@ -219,6 +219,7 @@ function Kanboard.getReferenceData(projectId)
 	end
 
 	return {
+		project = project,
 		columns = columns,
 		categories = categories,
 		swimlanes = swimlanes,
@@ -245,7 +246,7 @@ function Kanboard.updateCache(projectId, kbTask)
 	local response = Kanboard.rpc("getProjectById", {
 		project_id = projectId
 	})
-	local project
+	local project = {}
 	if Kanboard.checkResponse(response) then
 		project = response.body.result
 	else
@@ -489,6 +490,7 @@ function Kanboard.buildCacheEntry(task, reference)
 	if task.project_id ~= "0" then
 		table.insert(
 			attributes, "[projectId: " .. task.project_id .. "]")
+		table.insert(
 			attributes, "[projectName: " .. reference.project.name .. "]")
 	end
 	if task.date_due ~= "0" then
