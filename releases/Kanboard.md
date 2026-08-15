@@ -84,7 +84,7 @@ that survive page renaming
 ### note
 
 The library only caches Kanboard tasks that are not closed.
-The library works with (<<<https://github.com/Mr-xRed/silverbullet-libraries/blob/main/TaskManager.md)[Taskmanager>]
+The library works with (<https://github.com/Mr-xRed/silverbullet-libraries/blob/main/TaskManager.md)[Taskmanager>]
 
 ## Code
 
@@ -303,12 +303,14 @@ function Library.currentTask()
 		-- return nil
 	end
 	local task = tasks[1]
-	return {
-		start = task.pos,
-		finish = task.toPos,
-		status = task.state,
-		text = task.name
-	}
+	if task ~= nil and task ~= {} then
+		return {
+			start = task.pos,
+			finish = task.toPos,
+			status = task.state,
+			text = task.name
+		}
+	end
 end
 
 -----------------------------------------------------------------------
@@ -520,7 +522,7 @@ function Kanboard.sendTask(projectId, swimlaneId)
 	end
 
 	-- 3. Create the task in Kanboard.
-	params = {
+	local params = {
 		title = task.text,
 		description = "Task Status in SB at creation: [" .. task.status .. "]",
 		reference = pageId,
@@ -784,6 +786,7 @@ end
 -----------------------------------------------------------------------
 function getCategory(reference, categoryId)
 	if categoryId ~= "0" then
+		local category
 		_, category = table.find(reference.categories, function(category)
 			return category.id == categoryId
 		end)
@@ -799,6 +802,7 @@ end
 -----------------------------------------------------------------------
 function getSwimlane(reference, swimlaneId)
 	if swimlaneId ~= "0" then
+		local swimlane
 		_, swimlane = table.find(reference.swimlanes, function(swimlane)
 			return swimlane.id == swimlaneId
 		end)
@@ -814,6 +818,7 @@ end
 -----------------------------------------------------------------------
 function getSwimlaneAtPosition(reference, position)
 	if position ~= "0" then
+		local swimlane
 		_, swimlane = table.find(reference.swimlanes, function(swimlane)
 			return swimlane.position == position
 		end)
@@ -829,6 +834,7 @@ end
 -----------------------------------------------------------------------
 function getColumn(reference, columnId)
 	if columnId ~= "0" then
+		local column
 		_, column = table.find(reference.columns, function(column)
 			return column.id == columnId
 		end)
@@ -844,6 +850,7 @@ end
 -----------------------------------------------------------------------
 function getColumnAtPosition(reference, position)
 	if position ~= "0" then
+		local column
 		_, column = table.find(reference.columns, function(column)
 			return column.position == position
 		end)
