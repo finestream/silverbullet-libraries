@@ -90,7 +90,9 @@ function Kanboard.sendTask(projectId, swimlaneId)
 	-- 1. Read the current task.
 	local task = Library.currentTask()
 	if not task then
-		editor.flashNotification("No task found.", "error")
+		if config.get("kanboard").debug then
+			editor.flashNotification("No task found.", "error")
+		end
 		return
 	end
 
