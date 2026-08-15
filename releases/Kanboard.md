@@ -84,7 +84,7 @@ that survive page renaming
 ### note
 
 The library only caches Kanboard tasks that are not closed.
-The library works with (<https://github.com/Mr-xRed/silverbullet-libraries/blob/main/TaskManager.md)[Taskmanager>]
+The library works with <https://github.com/Mr-xRed/silverbullet-libraries/blob/main/TaskManager.md>
 
 ## Code
 
@@ -511,7 +511,9 @@ function Kanboard.sendTask(projectId, swimlaneId)
 	-- 1. Read the current task.
 	local task = Library.currentTask()
 	if not task then
-		editor.flashNotification("No task found.", "error")
+		if config.get("kanboard").debug then
+			editor.flashNotification("No task found.", "error")
+		end
 		return
 	end
 
