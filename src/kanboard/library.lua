@@ -212,12 +212,14 @@ function Library.currentTask()
 		-- return nil
 	end
 	local task = tasks[1]
-	return {
-		start = task.pos,
-		finish = task.toPos,
-		status = task.state,
-		text = task.name
-	}
+	if task ~= nil and task ~= {} then
+		return {
+			start = task.pos,
+			finish = task.toPos,
+			status = task.state,
+			text = task.name
+		}
+	end
 end
 
 -----------------------------------------------------------------------
