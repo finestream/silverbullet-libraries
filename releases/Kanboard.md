@@ -73,8 +73,7 @@ config.set {
 
 `Kanboard: Refile Project` Creates a new project from the current idea
 `Kanboard: Send Task` Sends a Silverbullet task to Kanboard
-`Kanboard: Update Cache` Updates the cache of Kanboard Tasks in Silverbullet
-`Kanboard: Sync Status` Update tasks marked as done in SB on Kanboard and refreshes the cache
+`Kanboard: Update Cache` Updates tasks marked as done in SB on Kanboard and refreshes the all caches in Silverbullet
 
 ### virtual pages
 
@@ -693,7 +692,7 @@ function Kanboard.updateCache(projectId, kbTask)
 				age .. " now =" .. os.time() .. " lastSync =" .. cacheMeta[1].lastSync)
 		end
 		if age > config.get("kanboard").sbCacheRefreshHours * 3600 then
-			Kanboard.rebuildCache(project, cachePage, reference)
+			Kanboard.updateAllCaches() -- here we trigger a full rebuild of all caches, to avoid loosing closed tasks.
 			return
 		end
 	end
@@ -973,45 +972,26 @@ function Kanboard.findLastColumnId(columns)
 end
 
 -----------------------------------------------------------------------
--- closeTasks(projectId)
+-- closeTasks()
 --
 -- Closes tasks marked as done in the cached page on Kanboard
 -- This can be achieved by closing the tasks and/or moving them to the last column.
 -- see config.kbCloseDone and config.kbMoveDone
 -----------------------------------------------------------------------
-function Kanboard.closeTasks(projectId)
+function Kanboard.closeTasks()
 	local cfg = config.get("kanboard")
-	if not cfg.kbCloseDone and not cfg.kbMoveDone then
+	if not cfg.kbCloseDone and not cfg.kbMoveDone and cfg.debug then
 		editor.flashNotification("Kanboard: No sync action configured (kbCloseDone and kbMoveDone are both false).",
 			"info")
 		return
 	end
 
-	local response = Kanboard.rpc("getProjectById", {
-		project_id = projectId
-	})
-	if not Kanboard.checkResponse(response) then
-		editor.flashNotification("Unable to retrieve project.", "error")
-		return
-	end
-	local project = response.body.result
-
-	local cachePage = cfg.sbCachePath .. "/" .. tostring(project.id)
-	local closedTasks = query [[from t=tags.task where t.page == "Kanboard/To-Do" and t.done]]
+	local closedTasks = query [[from t=tags.task where string.startsWith(t.page, cfg.sbCachePath) and t.done]]
 	if #closedTasks == 0 then
-		editor.flashNotification("Kanboard: No closed tasks found to sync.", "info")
-		return
-	end
-
-	local lastColumnId = nil
-	if cfg.kbMoveDone then
-		local columnsResponse = Kanboard.rpc("getColumns", { project_id = projectId })
-		if not Kanboard.checkResponse(columnsResponse) then
-			editor.flashNotification("Unable to retrieve columns.", "error")
-			return
+		if cfg.debug then
+			editor.flashNotification("Kanboard: No closed tasks found to sync.", "info")
 		end
-		local columns = columnsResponse.body.result
-		lastColumnId = Kanboard.findLastColumnId(columns)
+		return
 	end
 
 	local closedCount = 0
@@ -1019,10 +999,31 @@ function Kanboard.closeTasks(projectId)
 	local failedCount = 0
 
 	for _, task in ipairs(closedTasks) do
+		-- validate that the task is still in kanboard
+		local taskResponse = Kanboard.rpc("getTask", { task_id = task.kbId })
+		if not Kanboard.checkResponse(taskResponse) then
+			if cfg.debug then
+				editor.flashNotification("Task not found in Kanboard: " .. task.kbId, "info")
+			end
+			failedCount = failedCount + 1
+		end
+		kbTask = taskResponse.body.result
+
+		-- get the last column id if required
+		local lastColumnId = nil
+		if cfg.kbMoveDone then
+			local columnsResponse = Kanboard.rpc("getColumns", { project_id = kbTask.project_id })
+			if not Kanboard.checkResponse(columnsResponse) and cfg.debug then
+				editor.flashNotification("Unable to retrieve columns.", "error")
+				return
+			end
+			local columns = columnsResponse.body.result
+			lastColumnId = Kanboard.findLastColumnId(columns)
+		end
 		if lastColumnId then
 			local moveResponse = Kanboard.rpc("moveTaskPosition", {
-				project_id = projectId,
-				swimlane_id = task.swimlaneId,
+				project_id = kbTask.project_id,
+				swimlane_id = kbTask.swimlane_id,
 				task_id = task.kbId,
 				column_id = lastColumnId,
 				position = 1
@@ -1044,11 +1045,14 @@ function Kanboard.closeTasks(projectId)
 	end
 
 	if closedCount > 0 or movedCount > 0 then
-		Kanboard.updateCache(projectId)
-		editor.flashNotification("Kanboard: Updated tasks: Closed " .. closedCount .. ", Moved " .. movedCount .. ".")
+		if cfg.debug then
+			editor.flashNotification(
+				"Kanboard: Updated tasks: Closed " .. closedCount .. ", Moved " .. movedCount .. ".",
+				"info")
+		end
 	end
 	if failedCount > 0 then
-		editor.flashNotification("Kanboard: Failed to sync " .. failedCount .. " task(s).")
+		editor.flashNotification("Kanboard: Failed to sync " .. failedCount .. " task(s).", "error")
 	end
 end
 
@@ -1070,6 +1074,7 @@ command.define {
 -- Update all project caches by cycling through all Kanboard projects.
 -----------------------------------------------------------------------
 function Kanboard.updateAllCaches()
+	Kanboard.closeTasks()
 	local response = Kanboard.rpc("getMyProjects", {})
 	if not Kanboard.checkResponse(response) then
 		editor.flashNotification("Unable to retrieve Kanboard projects.", "error")
@@ -1132,17 +1137,6 @@ command.define {
 		end
 
 		editor.flashNotification("Removed " .. #pages .. " Kanboard cache page(s).")
-	end
-}
-
------------------------------------------------------------------------
--- Sync locally closed Kanboard tasks.
------------------------------------------------------------------------
-command.define {
-	name = "Kanboard: Sync Status",
-	run = function()
-		local projectId = editor.getCurrentPageMeta().kbProjectId
-		Kanboard.closeTasks(projectId)
 	end
 }
 
