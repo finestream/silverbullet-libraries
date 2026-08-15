@@ -63,8 +63,7 @@ config.set {
 
 `Kanboard: Refile Project` Creates a new project from the current idea
 `Kanboard: Send Task` Sends a Silverbullet task to Kanboard
-`Kanboard: Update Cache` Updates the cache of Kanboard Tasks in Silverbullet
-`Kanboard: Sync Status` Update tasks marked as done in SB on Kanboard and refreshes the cache
+`Kanboard: Update Cache` Updates tasks marked as done in SB on Kanboard and refreshes the all caches in Silverbullet
 
 ### virtual pages
 
