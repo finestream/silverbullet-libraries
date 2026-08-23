@@ -221,7 +221,7 @@ function Kanboard.getReferenceData(projectId)
 	end
 
 	-- Retrive users
-	local userResponse = Kanboard.rpc("getAllUsers", {})
+	local userResponse = Kanboard.rpc("getProjectUsers", { project_id = projectId })
 	local users = {}
 	if Kanboard.checkResponse(userResponse) then
 		users = userResponse.body.result
@@ -318,6 +318,7 @@ function Kanboard.rebuildCache(project, cachePage, reference)
 	table.insert(page, "swimlanes: \n" .. yaml.stringify(reference.swimlanes))
 	table.insert(page, "columns: \n" .. yaml.stringify(reference.columns))
 	table.insert(page, "categories: \n" .. yaml.stringify(reference.categories))
+	table.insert(page, "users: \n" .. yaml.stringify(reference.users))
 	table.insert(page, "tags: \n- KanboardManaged\n- meta")
 	table.insert(page, "lastSync: " .. os.time())
 	table.insert(page, "---")
@@ -458,10 +459,7 @@ end
 -----------------------------------------------------------------------
 function Kanboard.getUserName(reference, userId)
 	local user
-	_, user = table.find(reference.users, function(user)
-		return user.id == userId
-	end)
-	return user
+	return (reference.users)[userId]
 end
 
 -----------------------------------------------------------------------
@@ -516,8 +514,9 @@ function Kanboard.buildCacheEntry(task, reference)
 	-- Build attributes
 	local attributes = {}
 	Kanboard.addAttribute(attributes, "kbId", task.id)
-	-- TODO: fix category name
-	-- Kanboard.addAttribute(attributes, "category", (Kanboard.getCategory(reference, task.category_id))["name"])
+	if task.category_id ~= 0 and task.category_id ~= "0" then
+		Kanboard.addAttribute(attributes, "category", (Kanboard.getCategory(reference, task.category_id))["name"])
+	end
 	Kanboard.addAttribute(attributes, "categoryId", task.category_id)
 	Kanboard.addAttribute(attributes, "priority", task.score)
 	Kanboard.addAttribute(attributes, "project", reference.project.name)
@@ -532,11 +531,13 @@ function Kanboard.buildCacheEntry(task, reference)
 	Kanboard.addAttribute(attributes, "completed", task.date_completed)
 	Kanboard.addAttribute(attributes, "color", task.color_id)
 	-- TODO add colorBackground and colorBorder
-	-- TODO: fix owner name
-	-- Kanboard.addAttribute(attributes, "owner", (Kanboard.getUserName(reference, task.owner_id))["name"])
+	if task.owner_id ~= 0 and task.owner_id ~= "0" then
+		Kanboard.addAttribute(attributes, "owner", (Kanboard.getUserName(reference, task.owner_id)))
+	end
 	Kanboard.addAttribute(attributes, "ownerId", task.owner_id)
-	-- TODO: fix creator name
-	-- Kanboard.addAttribute(attributes, "creator", (Kanboard.getUserName(reference, task.creator_id))["name"])
+	if task.creator_id ~= 0 and task.creator_id ~= "0" then
+		Kanboard.addAttribute(attributes, "creator", (Kanboard.getUserName(reference, task.creator_id)))
+	end
 	Kanboard.addAttribute(attributes, "creatorId", task.creator_id)
 	Kanboard.addAttribute(attributes, "position", task.position)
 	Kanboard.addAttribute(attributes, "swimlane", (Kanboard.getSwimlane(reference, task.swimlane_id))["name"])
