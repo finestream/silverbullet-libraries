@@ -426,7 +426,7 @@ Kanboard = {}
 -----------------------------------------------------------------------
 -- queryTask(task)
 --
--- Converts a Kanboard task into a reference to a cached task.
+-- Generates a query to find the reference in the cached tasks.
 --
 -- Expected task fields:
 --   id
@@ -585,14 +585,14 @@ function Kanboard.sendTask(projectId, swimlaneId)
 end
 
 -----------------------------------------------------------------------
--- getReferenceData(projectId)
+-- Kanboard.getReferenceData(projectId)
 --
--- get reference data for given projectId.
+-- Get reference data for given projectId.
 --
 -- Returns a table with project, columns and categories.
 -----------------------------------------------------------------------
 function Kanboard.getReferenceData(projectId)
-	-- Retrieve project.
+	-- Retrieve project
 	local response = Kanboard.rpc("getProjectById", {
 		project_id = projectId
 	})
@@ -604,7 +604,7 @@ function Kanboard.getReferenceData(projectId)
 		return
 	end
 
-	-- Retrieve columns names.
+	-- Retrieve columns
 	local response = Kanboard.rpc("getColumns", {
 		project_id = projectId
 	})
@@ -616,7 +616,7 @@ function Kanboard.getReferenceData(projectId)
 		return
 	end
 
-	-- Retrieve categories names.
+	-- Retrieve categories
 	response = Kanboard.rpc("getAllCategories", {
 		project_id = projectId
 	})
@@ -628,7 +628,7 @@ function Kanboard.getReferenceData(projectId)
 		return
 	end
 
-	-- Retrieve swimlanes names.
+	-- Retrieve swimlanes
 	local swimlaneResponse = Kanboard.rpc("getAllSwimlanes", {
 		project_id = projectId
 	})
@@ -640,11 +640,22 @@ function Kanboard.getReferenceData(projectId)
 		return
 	end
 
+	-- Retrive users
+	local userResponse = Kanboard.rpc("getProjectUsers", { project_id = projectId })
+	local users = {}
+	if Kanboard.checkResponse(userResponse) then
+		users = userResponse.body.result
+	else
+		editor.flashNotification("Unable to retrieve users.", "error")
+		return
+	end
+
 	return {
 		project = project,
 		columns = columns,
 		categories = categories,
 		swimlanes = swimlanes,
+		users = users
 	}
 end
 
@@ -692,7 +703,7 @@ function Kanboard.updateCache(projectId, kbTask)
 				age .. " now =" .. os.time() .. " lastSync =" .. cacheMeta[1].lastSync)
 		end
 		if age > config.get("kanboard").sbCacheRefreshHours * 3600 then
-			Kanboard.updateAllCaches() -- here we trigger a full rebuild of all caches, to avoid loosing closed tasks.
+			Kanboard.updateAllCaches() -- here we trigger a full rebuild of all caches, to avoid loosing closed tasks.make
 			return
 		end
 	end
@@ -727,6 +738,7 @@ function Kanboard.rebuildCache(project, cachePage, reference)
 	table.insert(page, "swimlanes: \n" .. yaml.stringify(reference.swimlanes))
 	table.insert(page, "columns: \n" .. yaml.stringify(reference.columns))
 	table.insert(page, "categories: \n" .. yaml.stringify(reference.categories))
+	table.insert(page, "users: \n" .. yaml.stringify(reference.users))
 	table.insert(page, "tags: \n- KanboardManaged\n- meta")
 	table.insert(page, "lastSync: " .. os.time())
 	table.insert(page, "---")
@@ -781,11 +793,11 @@ function Kanboard.updateCacheEntry(kbTask, cachePage, reference)
 end
 
 -----------------------------------------------------------------------
--- getCategory(reference, categoryId)
+-- Kanboard.getCategory(reference, categoryId)
 --
 -- Retrieves a category by its ID from the reference data.
 -----------------------------------------------------------------------
-function getCategory(reference, categoryId)
+function Kanboard.getCategory(reference, categoryId)
 	if categoryId ~= "0" then
 		local category
 		_, category = table.find(reference.categories, function(category)
@@ -797,11 +809,11 @@ function getCategory(reference, categoryId)
 end
 
 -----------------------------------------------------------------------
--- getSwimlane(reference, swimlaneId)
+-- Kanboard.getSwimlane(reference, swimlaneId)
 --
 -- Retrieves a swimlane by its ID from the reference data.
 -----------------------------------------------------------------------
-function getSwimlane(reference, swimlaneId)
+function Kanboard.getSwimlane(reference, swimlaneId)
 	if swimlaneId ~= "0" then
 		local swimlane
 		_, swimlane = table.find(reference.swimlanes, function(swimlane)
@@ -813,11 +825,11 @@ function getSwimlane(reference, swimlaneId)
 end
 
 -----------------------------------------------------------------------
--- getSwimlaneAtPosition(reference, position)
+-- Kanboard.getSwimlaneAtPosition(reference, position)
 --
 -- Retrieves a swimlane by its Position from the reference data.
 -----------------------------------------------------------------------
-function getSwimlaneAtPosition(reference, position)
+function Kanboard.getSwimlaneAtPosition(reference, position)
 	if position ~= "0" then
 		local swimlane
 		_, swimlane = table.find(reference.swimlanes, function(swimlane)
@@ -829,11 +841,11 @@ function getSwimlaneAtPosition(reference, position)
 end
 
 -----------------------------------------------------------------------
--- getColumn(reference, columnId)
+-- Kanboard.getColumn(reference, columnId)
 --
 -- Retrieves a column by its ID from the reference data.
 -----------------------------------------------------------------------
-function getColumn(reference, columnId)
+function Kanboard.getColumn(reference, columnId)
 	if columnId ~= "0" then
 		local column
 		_, column = table.find(reference.columns, function(column)
@@ -845,11 +857,11 @@ function getColumn(reference, columnId)
 end
 
 -----------------------------------------------------------------------
--- getColumnAtPosition(reference, position)
+-- Kanboard.getColumnAtPosition(reference, position)
 --
 -- Retrieves a column by its Position from the reference data.
 -----------------------------------------------------------------------
-function getColumnAtPosition(reference, position)
+function Kanboard.getColumnAtPosition(reference, position)
 	if position ~= "0" then
 		local column
 		_, column = table.find(reference.columns, function(column)
@@ -858,6 +870,28 @@ function getColumnAtPosition(reference, position)
 		return column
 	end
 	return nil
+end
+
+-----------------------------------------------------------------------
+-- Kanboard.getUserName(reference, userId)
+--
+-- Retrieves a user name by their ID from the reference data.
+-----------------------------------------------------------------------
+function Kanboard.getUserName(reference, userId)
+	local user
+	return (reference.users)[userId]
+end
+
+-----------------------------------------------------------------------
+-- Kanboard.addAttribute(table, value)
+--
+-- wrapper around table.insert resilient to nil values.
+-----------------------------------------------------------------------
+function Kanboard.addAttribute(attributes, name, value)
+	if value == nil or name == nil then
+		return
+	end
+	table.insert(attributes, "[" .. name .. ": " .. value .. "]")
 end
 
 -----------------------------------------------------------------------
@@ -873,92 +907,82 @@ end
 --                   columns and categories)
 -----------------------------------------------------------------------
 function Kanboard.buildCacheEntry(task, reference)
-	-- Retrieve tags.
-	local response = Kanboard.rpc("getTaskTags", {
-		task_id = task.id
-	})
-	local tags
-	if Kanboard.checkResponse(response) then
-		tags = response.body.result
-	else
-		editor.flashNotification("Unable to retrieve task tags.", "error")
-		return nil
-	end
-
 	-- Build status.
 	local status = " "
 	if task.is_active == "0" then
 		status = "x"
 	end
+
+	-- Build Tags
 	local tagList = {}
+	local response = Kanboard.rpc("getTaskTags", { task_id = task.id })
+	local tags
+	if Kanboard.checkResponse(response) then
+		tags = response.body.result
+		for _, tag in pairs(tags) do
+			tag = tag:gsub("[<>]", "") -- Remove any angle brackets from the tag to avoid issues with tags in angle brackets.
+			table.insert(tagList, "#<" .. tag .. ">")
+		end
+	else
+		editor.flashNotification("Unable to retrieve task tags.", "error")
+		return nil
+	end
+
+	-- Build description
+	-- TODO: need to find a way to embed Description in the cache entry without breaking the task item format.
+
+	-- Build attributes
 	local attributes = {}
+	Kanboard.addAttribute(attributes, "kbId", task.id)
+	if task.category_id ~= 0 and task.category_id ~= "0" then
+		Kanboard.addAttribute(attributes, "category", (Kanboard.getCategory(reference, task.category_id))["name"])
+	end
+	Kanboard.addAttribute(attributes, "categoryId", task.category_id)
+	Kanboard.addAttribute(attributes, "priority", task.score)
+	Kanboard.addAttribute(attributes, "project", reference.project.name)
+	Kanboard.addAttribute(attributes, "projectId", task.project_id)
+	Kanboard.addAttribute(attributes, "column", (Kanboard.getColumn(reference, task.column_id))["title"])
+	Kanboard.addAttribute(attributes, "columnId", task.column_id)
+	Kanboard.addAttribute(attributes, "created", task.date_creation)
+	Kanboard.addAttribute(attributes, "due", task.date_due)
+	Kanboard.addAttribute(attributes, "modified", task.date_modification)
+	Kanboard.addAttribute(attributes, "moved", task.date_moved)
+	Kanboard.addAttribute(attributes, "started", task.date_started)
+	Kanboard.addAttribute(attributes, "completed", task.date_completed)
+	Kanboard.addAttribute(attributes, "color", task.color_id)
+	-- TODO add colorBackground and colorBorder
+	if task.owner_id ~= 0 and task.owner_id ~= "0" then
+		Kanboard.addAttribute(attributes, "owner", (Kanboard.getUserName(reference, task.owner_id)))
+	end
+	Kanboard.addAttribute(attributes, "ownerId", task.owner_id)
+	if task.creator_id ~= 0 and task.creator_id ~= "0" then
+		Kanboard.addAttribute(attributes, "creator", (Kanboard.getUserName(reference, task.creator_id)))
+	end
+	Kanboard.addAttribute(attributes, "creatorId", task.creator_id)
+	Kanboard.addAttribute(attributes, "position", task.position)
+	Kanboard.addAttribute(attributes, "swimlane", (Kanboard.getSwimlane(reference, task.swimlane_id))["name"])
+	Kanboard.addAttribute(attributes, "swimlaneId", task.swimlane_id)
+	Kanboard.addAttribute(attributes, "recurrenceStatus", task.recurrence_status)
+	Kanboard.addAttribute(attributes, "recurrenceBasedate", task.recurrence_basedate)
+	Kanboard.addAttribute(attributes, "recurrenceChild", task.recurrence_child)
+	Kanboard.addAttribute(attributes, "recurrenceFactor", task.recurrence_factor)
+	Kanboard.addAttribute(attributes, "recurrenceParent", task.recurrence_parent)
+	Kanboard.addAttribute(attributes, "recurrenceTimeframe", task.recurrence_timeframe)
+	Kanboard.addAttribute(attributes, "recurrenceTrigger", task.recurrence_trigger)
+	Kanboard.addAttribute(attributes, "pageId", task.reference)
+	Kanboard.addAttribute(attributes, "timeEstimated", task.time_estimated)
+	Kanboard.addAttribute(attributes, "timeSpent", task.time_spent)
 
-	-- Build tags.
-	if task.category_id ~= "0" then
-		local category = getCategory(reference, task.category_id)
-		if category then
-			table.insert(attributes, "[category: " .. category.name .. "]")
-			table.insert(attributes, "[categoryId: " .. task.category_id .. "]")
-			local categoryName = category.name:gsub("[<>]", "")
-			table.insert(tagList, "#<category-" .. categoryName .. ">")
-		end
-	end
-	for _, tag in pairs(tags) do
-		tag = tag:gsub("[<>]", "")
-		table.insert(tagList, "#<" .. tag .. ">")
-	end
-
-	-- Build attributes.
-	table.insert(attributes, "[kbId: " .. task.id .. "]")
-	local column = getColumn(reference, task.column_id)
-	if column then
-		table.insert(attributes, "[column: " .. column.title .. "]")
-	end
-	if task.project_id ~= "0" then
-		table.insert(
-			attributes, "[projectId: " .. task.project_id .. "]")
-		table.insert(
-			attributes, "[projectName: " .. reference.project.name .. "]")
-	end
-	if task.date_due ~= "0" then
-		table.insert(
-			attributes, "[due: " .. os.date("%Y-%m-%d", tonumber(task.date_due)) .. "]")
-	end
-	if task.score ~= "0" then
-		table.insert(
-			attributes, "[priority: " .. task.score .. "]")
-	end
-	if task.position ~= "0" then
-		table.insert(
-			attributes, "[position: " .. task.position .. "]")
-	end
-	if task.swimlane_id ~= "0" then
-		local swimlane = getSwimlane(reference, task.swimlane_id)
-		if swimlane then
-			table.insert(
-				attributes, "[swimlaneId: " .. task.swimlane_id .. "]")
-			table.insert(
-				attributes, "[swimlaneName: " .. swimlane.name .. "]")
-		end
-	end
-	if task.recurrence_status ~= "0" then
-		table.insert(
-			attributes, "[recurrence: " .. task.recurrence_status .. "]")
-	end
-	if task.reference ~= "" then
-		table.insert(
-			attributes, "[pageId: " .. task.reference .. "]")
-	end
 	return string.format("* [%s] %s ([KB](%s)) %s %s", status, task.title, task.url, table.concat(tagList, " "),
 		table.concat(attributes, " "))
 end
 
 -----------------------------------------------------------------------
--- findLastColumnId(columns)
+-- Kanboard.getLastColumnId(columns)
 --
 -- Returns the ID of the last column in the provided Kanboard column list.
 -----------------------------------------------------------------------
-function Kanboard.findLastColumnId(columns)
+function Kanboard.getLastColumnId(columns)
 	local lastColumnId = nil
 	local maxPosition = 0
 	for _, column in ipairs(columns) do
@@ -999,7 +1023,7 @@ function Kanboard.closeTasks()
 	local failedCount = 0
 
 	for _, task in ipairs(closedTasks) do
-		-- validate that the task is still in kanboard
+		-- Validate that the task is still in kanboard
 		local taskResponse = Kanboard.rpc("getTask", { task_id = task.kbId })
 		if not Kanboard.checkResponse(taskResponse) then
 			if cfg.debug then
@@ -1007,9 +1031,9 @@ function Kanboard.closeTasks()
 			end
 			failedCount = failedCount + 1
 		end
-		kbTask = taskResponse.body.result
+		local kbTask = taskResponse.body.result
 
-		-- get the last column id if required
+		-- Get the last column id if required
 		local lastColumnId = nil
 		if cfg.kbMoveDone then
 			local columnsResponse = Kanboard.rpc("getColumns", { project_id = kbTask.project_id })
@@ -1018,7 +1042,7 @@ function Kanboard.closeTasks()
 				return
 			end
 			local columns = columnsResponse.body.result
-			lastColumnId = Kanboard.findLastColumnId(columns)
+			lastColumnId = Kanboard.getLastColumnId(columns)
 		end
 		if lastColumnId then
 			local moveResponse = Kanboard.rpc("moveTaskPosition", {
