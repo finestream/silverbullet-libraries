@@ -11,35 +11,41 @@ tags: meta/library
 
 # Kanboard
 
-Synchronize tasks between Silverbullet and Kanboard while keeping
-SilverBullet as the primary workspace for thinking and Kanboard as the
-primary space for task management.
+Synchronize tasks between Silverbullet and Kanboard while keeping SilverBullet as the primary workspace for thinking and Kanboard as the primary space for task management.
 
-Enable minimal offline operations by leveraging native SilverBullet
-capabilities.
+It enables minimal offline operations by leveraging native SilverBullet capabilities.
 
-## Features & workflow
+## Features
 
-Consolidate your tasks in Kanboard and see them seamlessly as Silverbullet Tasks
+* *Synchronise and offline use* all open Kanboard Task to Silverbullet. The Kanboard Tasks are stored in a Silverbullet page for each Kanboard project. Most Kanborad Metadata is available in Silverbullet.
+* *Native Silverbullet tasks* Kanboard tasks are imported as native Silverbullets tasks. They can be queries as any other Kanboard ojbect and they are synched for offline use via Silverbullet PWA capabilities.
+* *Create new tasks* new Kanboard tasks can be created directly in Kanban and moved to Kanboard. Moving a task does the following: 1) it creates a task in Kanboard with the relevant attributes 2) it adds the tasks to the cache and 3) it replaces the task with a query. Tasks stay linked to pages even if pages are renamed or moved around.
+* *Close tasks* Tasks can be closed by using the native Silverbullet approach. Closed tasks can be synched back to Kanboard by usind the relevant command. Please note that Kanboard colums are not stored as states but as column attributes and you can configure if closing a task moves the task to the last column in Kanboard and/or closes it.
+* *Convenience* a number of slashcommands are defined to insert pre-defined queries and attributes to the tasks.
 
-- (optional) Capture ideas with `/newidea`
-- (optional) Mull over your ideas with standard Silverbullet tools (see [Outlines](https://silverbullet.md/Outlines))
-- (optional) Refile ideas into projects with the command "Kanboard: refile Project"
-- create Silverbullet tasks anywhere you like (e.g., in a Project page)
-- Send SilverBullet tasks to Kanboard with the command "Kanboard: Send Task" (or by using the shortcut)
+##  Suggested workflow
+
+The library tries to stay true to Silverbullet and provides one more tool in your toolbox while not enforcing a particular workflow. Here is mine as inspirat
+
+* (optional) Capture ideas with `/newidea`
+* (optional) Mull over your ideas with standard Silverbullet tools (see [Outlines](https://silverbullet.md/Outlines))
+* (optional) Refile ideas into projects with the command "Kanboard: refile Project"
+* Create Silverbullet tasks anywhere you like (e.g., in a Project page)
+* Add attributes as needed
+* Send SilverBullet tasks to Kanboard with the command "Kanboard: Send Task" (or by using the shortcut)
 
 Here is where the magic happens:
 
-- the Plug creates a task in Kanboard
-- it caches a copy of the task locally
-- it replaces the original task with a live query to the Cache in SB
-- Kanboard tasks are back-linked to the originating page
+* the Plug creates a task in Kanboard
+* it caches a copy of the task locally
+* it replaces the original task with a live query to the Cache in SB
+* Kanboard tasks are back-linked to the originating page
 
 From now on
 
-- you manage your tasks in Kanboard
-- you can sync them to silverbullet with the command "Kanboard: update Cache"
-- each task in Kanboard links (with Permalinks) back to the page where it was created
+* you manage your tasks in Kanboard
+* you can sync them to silverbullet with the command "Kanboard: update Cache"
+* each task in Kanboard links (with Permalinks) back to the page where it was created
 
 ## Configuration
 
@@ -80,10 +86,11 @@ config.set {
 `pageId:<pageId of the page>` Used to create permanent links to the orginating pages
 that survive page renaming
 
-### note
+### notes
 
-The library only caches Kanboard tasks that are not closed.
-The library works with <https://github.com/Mr-xRed/silverbullet-libraries/blob/main/TaskManager.md>
+* The library only caches Kanboard tasks that are not closed.
+* The library works with <https://github.com/Mr-xRed/silverbullet-libraries/blob/main/TaskManager.md>
+* Not tested with Silverbullet+
 
 ## Code
 
@@ -307,7 +314,8 @@ function Library.currentTask()
 			start = task.pos,
 			finish = task.toPos,
 			status = task.state,
-			text = task.name
+			text = task.name,
+			raw = task --actual task
 		}
 	end
 end
