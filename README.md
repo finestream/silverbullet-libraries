@@ -6,7 +6,10 @@ A collection of my libraries and plugins for [SilverBullet](https://silverbullet
 
 | Library | Description | Status |
 |---------|-------------|--------|
-| [Kanboard](kanboard/kanboard.md) | Integration between SilverBullet and Kanboard. | 🚧 In development |
+| [Kanboard](src/kanboard/kanboard.md) | Integration between SilverBullet and Kanboard. | 🚧 In development |
+| [ImageGallery](src/imagegallery/imagegallery.md) | Paginated thumbnail galleries for the images in your space. | 🚧 In development |
+
+Each library is versioned and released on its own; see `make help`.
 
 ## Installation
 
