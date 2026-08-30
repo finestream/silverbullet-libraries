@@ -217,7 +217,8 @@ function Library.currentTask()
 			start = task.pos,
 			finish = task.toPos,
 			status = task.state,
-			text = task.name
+			text = task.name,
+			raw = task --actual task
 		}
 	end
 end
