@@ -63,9 +63,22 @@ config.set {
       kbCloseDone = true, -- options mark tasks done in SB as closed in Kanboard when syncing status
       sbCachePath = "Kanboard", --Path on Silverbullet space where the tasks will be cached
       sbCacheRefreshHours = 6, --max cache age in hours
+      verbosity = 1, -- optional: which notifications to show, see below
   }
 }
 ```
+
+`verbosity` sets which notifications the library shows:
+
+| Level | Shows |
+|---|---|
+| `0` | nothing at all |
+| `1` | errors (default) |
+| `2` | errors and warnings, e.g. a task marked done in SB that no longer exists in Kanboard |
+| `3` | all of the above, and information when things went fine, e.g. "Task sent to Kanboard." or "Updated cache for 2 project(s)." |
+| `4` | all of the above, and debugging information, e.g. every HTTP response and the cache age |
+
+A value below 0 or above 4 is treated as 0 or 4. The older `debug = true` still works and means `verbosity = 4` when `verbosity` is not set.
 
 ## Usage
 
@@ -79,7 +92,7 @@ config.set {
 
 `Kanboard: Refile Project` Creates a new project from the current idea
 `Kanboard: Send Task` Sends a Silverbullet task to Kanboard
-`Kanboard: Update Cache` Updates tasks marked as done in SB on Kanboard and refreshes the all caches in Silverbullet
+`Kanboard: Update Cache` Updates tasks marked as done in SB on Kanboard, refreshes all caches in Silverbullet and deletes the caches of projects that are closed or deleted in Kanboard (or that you are no longer a member of)
 
 ### virtual pages
 
@@ -89,6 +102,7 @@ that survive page renaming
 ### notes
 
 * The library only caches Kanboard tasks that are not closed.
+* The library only caches active projects. When a project is closed or deleted in Kanboard, its cache page `<sbCachePath>/<projectId>` is deleted on the next cache update.
 * The library works with <https://github.com/Mr-xRed/silverbullet-libraries/blob/main/TaskManager.md>
 * Not tested with Silverbullet+
 
@@ -101,6 +115,49 @@ that survive page renaming
 -- reusable functions for silverbullet
 -----------------------------------------------------------------------
 Library = {}
+
+-----------------------------------------------------------------------
+-- Notification levels
+--
+-- Library.notify(level, message) shows a notification only when the
+-- configured verbosity is at least `level`:
+--
+--   0  SILENT   nothing at all
+--   1  ERROR    errors (default)
+--   2  WARNING  + warnings
+--   3  INFO     + information when things went fine
+--   4  DEBUG    + debugging information
+--
+-- Errors are shown as error notifications, everything else as info;
+-- warnings are prefixed with "Warning: ".
+--
+-- Library.verbosity() returns the configured level. Here it returns the
+-- default; an integration layer that has its own configuration (see
+-- Kanboard.verbosity) replaces it, so Library stays free of any
+-- integration specifics.
+-----------------------------------------------------------------------
+Library.SILENT = 0
+Library.ERROR = 1
+Library.WARNING = 2
+Library.INFO = 3
+Library.DEBUG = 4
+
+function Library.verbosity()
+	return Library.ERROR
+end
+
+function Library.notify(level, message)
+	if Library.verbosity() < level then
+		return
+	end
+	if level == Library.ERROR then
+		editor.flashNotification(message, "error")
+	elseif level == Library.WARNING then
+		editor.flashNotification("Warning: " .. message, "info")
+	else
+		editor.flashNotification(message, "info")
+	end
+end
 
 -----------------------------------------------------------------------
 -- generateUuid()
@@ -305,7 +362,7 @@ function Library.currentTask()
             and toPos >= cursor
     ]]
 	if # tasks ~= 1 then
-		editor.flashNotification("Expected exactly one task, found " .. # tasks .. ".", "error")
+		Library.notify(Library.ERROR, "Expected exactly one task, found " .. # tasks .. ".")
 		-- return nil
 	end
 	local task = tasks[1]
@@ -345,13 +402,13 @@ command.define {
 	run = function()
 		local subtree = Library.currentSubtree()
 		if not subtree then
-			editor.flashNotification("No subtree found.", "error")
+			Library.notify(Library.ERROR, "No subtree found.")
 			return
 		end
 		local page = editor.prompt("Move subtree to page:", "Project/New project " .. os.date("%Y-%m-%d"))
 		local ok, err = Library.createPageWithText(page, subtree.text)
 		if not ok then
-			editor.flashNotification(err, "error")
+			Library.notify(Library.ERROR, err)
 			return
 		end
 		local text = editor.getText()
@@ -361,7 +418,7 @@ command.define {
 		end
 		editor.replaceRange(
 			headingEnd - 1, subtree.finish - 1, "\nMoved to: [[" .. page .. "]]")
-		editor.flashNotification("Subtree copied to '" .. page .. "'.")
+		Library.notify(Library.INFO, "Subtree copied to '" .. page .. "'.")
 	end
 }
 
@@ -396,9 +453,9 @@ command.define {
 		local uuid = Library.generateUuid()
 		local ok, value = Library.setFrontmatter("pageId", uuid, false)
 		if ok then
-			editor.flashNotification("pageId = " .. value)
+			Library.notify(Library.INFO, "pageId = " .. value)
 		else
-			editor.flashNotification("Existing pageId = " .. value)
+			Library.notify(Library.INFO, "Existing pageId = " .. value)
 		end
 	end
 }
@@ -430,6 +487,40 @@ virtualPage.define {
 -- Package
 -----------------------------------------------------------------------
 Kanboard = {}
+
+-----------------------------------------------------------------------
+-- verbosity()
+--
+-- Reads the notification level from config.kanboard.verbosity:
+--   0 silent, 1 errors (default), 2 + warnings, 3 + info, 4 + debug
+-- (see Library.notify).
+--
+-- The older `debug = true` still works and means 4 when verbosity is not
+-- set. A value below 0 or above 4 is clamped; anything that is not a
+-- number falls back to the default.
+--
+-- Installed as Library.verbosity, so the Library's own notifications
+-- follow the same setting.
+-----------------------------------------------------------------------
+function Kanboard.verbosity()
+	local cfg = config.get("kanboard") or {}
+	local level = tonumber(cfg.verbosity)
+	if level == nil then
+		if cfg.debug then
+			return Library.DEBUG
+		end
+		return Library.ERROR
+	end
+	level = math.floor(level)
+	if level < Library.SILENT then
+		return Library.SILENT
+	end
+	if level > Library.DEBUG then
+		return Library.DEBUG
+	end
+	return level
+end
+Library.verbosity = Kanboard.verbosity
 
 -----------------------------------------------------------------------
 -- queryTask(task)
@@ -486,15 +577,14 @@ end
 --   true  if no error occurred
 --   false otherwise
 --
--- In case of failure an error notification is shown.
+-- The HTTP outcome is shown at verbosity 4 (debug); the caller reports
+-- the failure itself.
 -----------------------------------------------------------------------
 function Kanboard.checkResponse(response)
-	if config.get("kanboard").debug then
-		if response.ok then
-			editor.flashNotification("Kanboarddebug: HTTP Response OK", "info")
-		else
-			editor.flashNotification("Kanboarddebug: " .. tostring(response.status), "info")
-		end
+	if response.ok then
+		Library.notify(Library.DEBUG, "Kanboarddebug: HTTP Response OK")
+	else
+		Library.notify(Library.DEBUG, "Kanboarddebug: " .. tostring(response.status))
 	end
 	return response.ok
 end
@@ -518,9 +608,7 @@ function Kanboard.sendTask(projectId, swimlaneId)
 	-- 1. Read the current task.
 	local task = Library.currentTask()
 	if not task then
-		if config.get("kanboard").debug then
-			editor.flashNotification("No task found.", "error")
-		end
+		Library.notify(Library.DEBUG, "No task found.")
 		return
 	end
 
@@ -545,7 +633,7 @@ function Kanboard.sendTask(projectId, swimlaneId)
 	if Kanboard.checkResponse(response) then
 		taskId = response.body.result
 	else
-		editor.flashNotification("Unable to create Kanboard task.", "error")
+		Library.notify(Library.ERROR, "Unable to create Kanboard task.")
 		return
 	end
 
@@ -555,7 +643,7 @@ function Kanboard.sendTask(projectId, swimlaneId)
 			task_id = taskId
 		})
 		if not Kanboard.checkResponse(response) then
-			editor.flashNotification("Unable to close Kanboard task.", "error")
+			Library.notify(Library.ERROR, "Unable to close Kanboard task.")
 			return
 		end
 	end
@@ -569,7 +657,7 @@ function Kanboard.sendTask(projectId, swimlaneId)
 		title = "SB Context"
 	})
 	if not Kanboard.checkResponse(response) then
-		editor.flashNotification("Unable to link Kanboard task to SilverBullet.", "error")
+		Library.notify(Library.ERROR, "Unable to link Kanboard task to SilverBullet.")
 		return
 	end
 
@@ -585,11 +673,11 @@ function Kanboard.sendTask(projectId, swimlaneId)
 		task_id = taskId
 	})
 	if not Kanboard.checkResponse(kbTaskResponse) then
-		editor.flashNotification("Unable to retrieve Kanboard task.", "error")
+		Library.notify(Library.ERROR, "Unable to retrieve Kanboard task.")
 		return
 	end
 	Kanboard.updateCache(projectId, kbTaskResponse.body.result)
-	editor.flashNotification("Task sent to Kanboard.")
+	Library.notify(Library.INFO, "Task sent to Kanboard.")
 end
 
 -----------------------------------------------------------------------
@@ -608,7 +696,7 @@ function Kanboard.getReferenceData(projectId)
 	if Kanboard.checkResponse(response) then
 		project = response.body.result
 	else
-		editor.flashNotification("Unable to retrieve project.", "error")
+		Library.notify(Library.ERROR, "Unable to retrieve project.")
 		return
 	end
 
@@ -620,7 +708,7 @@ function Kanboard.getReferenceData(projectId)
 	if Kanboard.checkResponse(response) then
 		columns = response.body.result
 	else
-		editor.flashNotification("Unable to retrieve columns.", "error")
+		Library.notify(Library.ERROR, "Unable to retrieve columns.")
 		return
 	end
 
@@ -632,7 +720,7 @@ function Kanboard.getReferenceData(projectId)
 	if Kanboard.checkResponse(response) then
 		categories = response.body.result
 	else
-		editor.flashNotification("Unable to retrieve categories.", "error")
+		Library.notify(Library.ERROR, "Unable to retrieve categories.")
 		return
 	end
 
@@ -644,7 +732,7 @@ function Kanboard.getReferenceData(projectId)
 	if Kanboard.checkResponse(swimlaneResponse) then
 		swimlanes = swimlaneResponse.body.result
 	else
-		editor.flashNotification("Unable to retrieve swimlanes.", "error")
+		Library.notify(Library.ERROR, "Unable to retrieve swimlanes.")
 		return
 	end
 
@@ -654,7 +742,7 @@ function Kanboard.getReferenceData(projectId)
 	if Kanboard.checkResponse(userResponse) then
 		users = userResponse.body.result
 	else
-		editor.flashNotification("Unable to retrieve users.", "error")
+		Library.notify(Library.ERROR, "Unable to retrieve users.")
 		return
 	end
 
@@ -691,7 +779,7 @@ function Kanboard.updateCache(projectId, kbTask)
 	if Kanboard.checkResponse(response) then
 		project = response.body.result
 	else
-		editor.flashNotification("Unable to retrieve project.", "error")
+		Library.notify(Library.ERROR, "Unable to retrieve project.")
 		return
 	end
 
@@ -706,10 +794,8 @@ function Kanboard.updateCache(projectId, kbTask)
 		return
 	else
 		local age = os.time() - (tonumber(cacheMeta[1].lastSync) or 0)
-		if (config.get("kanboard").debug) then
-			editor.flashNotification("Kanboarddebug: cache Age =" ..
-				age .. " now =" .. os.time() .. " lastSync =" .. cacheMeta[1].lastSync)
-		end
+		Library.notify(Library.DEBUG, "Kanboarddebug: cache Age =" ..
+			age .. " now =" .. os.time() .. " lastSync =" .. tostring(cacheMeta[1].lastSync))
 		if age > config.get("kanboard").sbCacheRefreshHours * 3600 then
 			Kanboard.updateAllCaches() -- here we trigger a full rebuild of all caches, to avoid loosing closed tasks.make
 			return
@@ -732,7 +818,7 @@ function Kanboard.rebuildCache(project, cachePage, reference)
 	if Kanboard.checkResponse(response) then
 		tasks = response.body.result
 	else
-		editor.flashNotification("Unable to retrieve tasks.", "error")
+		Library.notify(Library.ERROR, "Unable to retrieve tasks.")
 		return
 	end
 
@@ -763,7 +849,7 @@ function Kanboard.rebuildCache(project, cachePage, reference)
 	end
 	space.writePage(
 		cachePage, table.concat(page, "\n"))
-	editor.flashNotification("Kanboard: Cache project " ..
+	Library.notify(Library.INFO, "Kanboard: Cache project " ..
 		project.id .. " " .. project.name .. " rebuilt (" .. # tasks .. " tasks).")
 end
 
@@ -794,7 +880,7 @@ function Kanboard.updateCacheEntry(kbTask, cachePage, reference)
 		local task = tasks[1]
 		text = text:sub(1, task.pos - 1) .. entry .. text:sub(task.toPos + 1)
 	else
-		editor.flashNotification("Cache contains duplicate kbId - perform a full update" .. kbTask.id, "error")
+		Library.notify(Library.ERROR, "Cache contains duplicate kbId - perform a full update" .. kbTask.id)
 		return
 	end
 	space.writePage(cachePage, text)
@@ -932,7 +1018,7 @@ function Kanboard.buildCacheEntry(task, reference)
 			table.insert(tagList, "#<" .. tag .. ">")
 		end
 	else
-		editor.flashNotification("Unable to retrieve task tags.", "error")
+		Library.notify(Library.ERROR, "Unable to retrieve task tags.")
 		return nil
 	end
 
@@ -1018,17 +1104,15 @@ end
 -----------------------------------------------------------------------
 function Kanboard.closeTasks()
 	local cfg = config.get("kanboard")
-	if not cfg.kbCloseDone and not cfg.kbMoveDone and cfg.debug then
-		editor.flashNotification("Kanboard: No sync action configured (kbCloseDone and kbMoveDone are both false).",
-			"info")
+	if not cfg.kbCloseDone and not cfg.kbMoveDone then
+		Library.notify(Library.DEBUG,
+			"Kanboard: No sync action configured (kbCloseDone and kbMoveDone are both false).")
 		return
 	end
 
 	local closedTasks = query [[from t=tags.task where string.startsWith(t.page, cfg.sbCachePath) and t.done]]
 	if #closedTasks == 0 then
-		if cfg.debug then
-			editor.flashNotification("Kanboard: No closed tasks found to sync.", "info")
-		end
+		Library.notify(Library.DEBUG, "Kanboard: No closed tasks found to sync.")
 		return
 	end
 
@@ -1039,58 +1123,56 @@ function Kanboard.closeTasks()
 	for _, task in ipairs(closedTasks) do
 		-- Validate that the task is still in kanboard
 		local taskResponse = Kanboard.rpc("getTask", { task_id = task.kbId })
-		if not Kanboard.checkResponse(taskResponse) then
-			if cfg.debug then
-				editor.flashNotification("Task not found in Kanboard: " .. task.kbId, "info")
-			end
+		local kbTask = nil
+		if Kanboard.checkResponse(taskResponse) then
+			kbTask = taskResponse.body.result
+		end
+		if not kbTask then
+			Library.notify(Library.WARNING, "Task not found in Kanboard: " .. tostring(task.kbId))
 			failedCount = failedCount + 1
-		end
-		local kbTask = taskResponse.body.result
-
-		-- Get the last column id if required
-		local lastColumnId = nil
-		if cfg.kbMoveDone then
-			local columnsResponse = Kanboard.rpc("getColumns", { project_id = kbTask.project_id })
-			if not Kanboard.checkResponse(columnsResponse) and cfg.debug then
-				editor.flashNotification("Unable to retrieve columns.", "error")
-				return
+		else
+			-- Get the last column id if required
+			local lastColumnId = nil
+			if cfg.kbMoveDone then
+				local columnsResponse = Kanboard.rpc("getColumns", { project_id = kbTask.project_id })
+				if not Kanboard.checkResponse(columnsResponse) then
+					Library.notify(Library.ERROR, "Unable to retrieve columns.")
+					return
+				end
+				local columns = columnsResponse.body.result
+				lastColumnId = Kanboard.getLastColumnId(columns)
 			end
-			local columns = columnsResponse.body.result
-			lastColumnId = Kanboard.getLastColumnId(columns)
-		end
-		if lastColumnId then
-			local moveResponse = Kanboard.rpc("moveTaskPosition", {
-				project_id = kbTask.project_id,
-				swimlane_id = kbTask.swimlane_id,
-				task_id = task.kbId,
-				column_id = lastColumnId,
-				position = 1
-			})
-			if Kanboard.checkResponse(moveResponse) then
-				movedCount = movedCount + 1
-			else
-				failedCount = failedCount + 1
+			if lastColumnId then
+				local moveResponse = Kanboard.rpc("moveTaskPosition", {
+					project_id = kbTask.project_id,
+					swimlane_id = kbTask.swimlane_id,
+					task_id = task.kbId,
+					column_id = lastColumnId,
+					position = 1
+				})
+				if Kanboard.checkResponse(moveResponse) then
+					movedCount = movedCount + 1
+				else
+					failedCount = failedCount + 1
+				end
 			end
-		end
-		if cfg.kbCloseDone then
-			local closeResponse = Kanboard.rpc("closeTask", { task_id = task.kbId })
-			if Kanboard.checkResponse(closeResponse) then
-				closedCount = closedCount + 1
-			else
-				failedCount = failedCount + 1
+			if cfg.kbCloseDone then
+				local closeResponse = Kanboard.rpc("closeTask", { task_id = task.kbId })
+				if Kanboard.checkResponse(closeResponse) then
+					closedCount = closedCount + 1
+				else
+					failedCount = failedCount + 1
+				end
 			end
 		end
 	end
 
 	if closedCount > 0 or movedCount > 0 then
-		if cfg.debug then
-			editor.flashNotification(
-				"Kanboard: Updated tasks: Closed " .. closedCount .. ", Moved " .. movedCount .. ".",
-				"info")
-		end
+		Library.notify(Library.INFO,
+			"Kanboard: Updated tasks: Closed " .. closedCount .. ", Moved " .. movedCount .. ".")
 	end
 	if failedCount > 0 then
-		editor.flashNotification("Kanboard: Failed to sync " .. failedCount .. " task(s).", "error")
+		Library.notify(Library.ERROR, "Kanboard: Failed to sync " .. failedCount .. " task(s).")
 	end
 end
 
@@ -1109,18 +1191,82 @@ command.define {
 }
 
 -----------------------------------------------------------------------
+-- pruneCaches(projects)
+--
+-- Deletes the cache pages of projects that Kanboard no longer returns:
+-- closed or deleted projects, and projects the user is no longer a
+-- member of. getMyProjects lists active projects only, so without this
+-- their cache pages would stay forever with stale tasks.
+--
+-- input: projects: the project list returned by getMyProjects
+--
+-- Only a page that is tagged KanboardManaged, has a projectId in its
+-- frontmatter and is named <sbCachePath>/<projectId> is deleted, so
+-- nothing but a cache page written by rebuildCache can be removed.
+--
+-- Returns:
+--   the number of cache pages deleted
+-----------------------------------------------------------------------
+function Kanboard.pruneCaches(projects)
+	local cachePath = config.get("kanboard").sbCachePath
+	local active = {}
+	for _, project in ipairs(projects) do
+		if project.id then
+			active[tostring(project.id)] = true
+		end
+	end
+
+	local pages = query [[from p = index.subPages(cachePath)
+		where table.includes(p.tags, "KanboardManaged")
+		]]
+	local pruned = 0
+	for _, page in ipairs(pages or {}) do
+		local projectId = page.projectId
+		if projectId ~= nil
+			and page.name == cachePath .. "/" .. tostring(projectId)
+			and not active[tostring(projectId)] then
+			local ok, err = pcall(function()
+				space.deletePage(page.name)
+			end)
+			if ok then
+				pruned = pruned + 1
+				Library.notify(Library.INFO, "Kanboard: Removed cache of closed or deleted project " ..
+					tostring(projectId) .. ".")
+			else
+				Library.notify(Library.ERROR, "Unable to delete cache page '" .. page.name .. "': " ..
+					tostring(err))
+			end
+		end
+	end
+	return pruned
+end
+
+-----------------------------------------------------------------------
 -- Update all project caches by cycling through all Kanboard projects.
+--
+-- Workflow:
+--   1. Sync tasks marked as done in SB back to Kanboard.
+--   2. Retrieve the user's active projects.
+--   3. Delete the caches of projects no longer returned (pruneCaches).
+--   4. Rebuild the cache of every active project.
 -----------------------------------------------------------------------
 function Kanboard.updateAllCaches()
 	Kanboard.closeTasks()
 	local response = Kanboard.rpc("getMyProjects", {})
 	if not Kanboard.checkResponse(response) then
-		editor.flashNotification("Unable to retrieve Kanboard projects.", "error")
+		Library.notify(Library.ERROR, "Unable to retrieve Kanboard projects.")
 		return
 	end
 	local projects = response.body.result
-	if not projects or #projects == 0 then
-		editor.flashNotification("Kanboard: No projects found.", "info")
+	-- A JSON-RPC error arrives with HTTP 200 and no result: never prune then,
+	-- or a failed call would delete every cache.
+	if type(projects) ~= "table" then
+		Library.notify(Library.ERROR, "Unable to retrieve Kanboard projects.")
+		return
+	end
+	Kanboard.pruneCaches(projects)
+	if #projects == 0 then
+		Library.notify(Library.INFO, "Kanboard: No projects found.")
 		return
 	end
 
@@ -1130,7 +1276,7 @@ function Kanboard.updateAllCaches()
 		end
 	end
 
-	editor.flashNotification("Kanboard: Updated cache for " .. #projects .. " project(s).")
+	Library.notify(Library.INFO, "Kanboard: Updated cache for " .. #projects .. " project(s).")
 end
 
 -----------------------------------------------------------------------
@@ -1153,7 +1299,7 @@ command.define {
 			where table.includes(p.tags, "KanboardManaged")
 			]]
 		if not pages or #pages == 0 then
-			editor.flashNotification("No Kanboard cache pages found.", "info")
+			Library.notify(Library.INFO, "No Kanboard cache pages found.")
 			return
 		end
 
@@ -1170,11 +1316,11 @@ command.define {
 				space.deletePage(page.name)
 			end)
 			if not ok then
-				editor.flashNotification("Unable to delete page '" .. page.name .. "': " .. tostring(err), "error")
+				Library.notify(Library.ERROR, "Unable to delete page '" .. page.name .. "': " .. tostring(err))
 			end
 		end
 
-		editor.flashNotification("Removed " .. #pages .. " Kanboard cache page(s).")
+		Library.notify(Library.INFO, "Removed " .. #pages .. " Kanboard cache page(s).")
 	end
 }
 
