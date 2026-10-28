@@ -69,7 +69,7 @@ config.set {
 
 `Kanboard: Refile Project` Creates a new project from the current idea
 `Kanboard: Send Task` Sends a Silverbullet task to Kanboard
-`Kanboard: Update Cache` Updates tasks marked as done in SB on Kanboard and refreshes the all caches in Silverbullet
+`Kanboard: Update Cache` Updates tasks marked as done in SB on Kanboard, refreshes all caches in Silverbullet and deletes the caches of projects that are closed or deleted in Kanboard (or that you are no longer a member of)
 
 ### virtual pages
 
@@ -79,6 +79,7 @@ that survive page renaming
 ### notes
 
 * The library only caches Kanboard tasks that are not closed.
+* The library only caches active projects. When a project is closed or deleted in Kanboard, its cache page `<sbCachePath>/<projectId>` is deleted on the next cache update.
 * The library works with <https://github.com/Mr-xRed/silverbullet-libraries/blob/main/TaskManager.md>
 * Not tested with Silverbullet+
 

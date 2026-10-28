@@ -681,7 +681,64 @@ command.define {
 }
 
 -----------------------------------------------------------------------
+-- pruneCaches(projects)
+--
+-- Deletes the cache pages of projects that Kanboard no longer returns:
+-- closed or deleted projects, and projects the user is no longer a
+-- member of. getMyProjects lists active projects only, so without this
+-- their cache pages would stay forever with stale tasks.
+--
+-- input: projects: the project list returned by getMyProjects
+--
+-- Only a page that is tagged KanboardManaged, has a projectId in its
+-- frontmatter and is named <sbCachePath>/<projectId> is deleted, so
+-- nothing but a cache page written by rebuildCache can be removed.
+--
+-- Returns:
+--   the number of cache pages deleted
+-----------------------------------------------------------------------
+function Kanboard.pruneCaches(projects)
+	local cachePath = config.get("kanboard").sbCachePath
+	local active = {}
+	for _, project in ipairs(projects) do
+		if project.id then
+			active[tostring(project.id)] = true
+		end
+	end
+
+	local pages = query [[from p = index.subPages(cachePath)
+		where table.includes(p.tags, "KanboardManaged")
+		]]
+	local pruned = 0
+	for _, page in ipairs(pages or {}) do
+		local projectId = page.projectId
+		if projectId ~= nil
+			and page.name == cachePath .. "/" .. tostring(projectId)
+			and not active[tostring(projectId)] then
+			local ok, err = pcall(function()
+				space.deletePage(page.name)
+			end)
+			if ok then
+				pruned = pruned + 1
+				editor.flashNotification("Kanboard: Removed cache of closed or deleted project " ..
+					tostring(projectId) .. ".")
+			else
+				editor.flashNotification("Unable to delete cache page '" .. page.name .. "': " ..
+					tostring(err), "error")
+			end
+		end
+	end
+	return pruned
+end
+
+-----------------------------------------------------------------------
 -- Update all project caches by cycling through all Kanboard projects.
+--
+-- Workflow:
+--   1. Sync tasks marked as done in SB back to Kanboard.
+--   2. Retrieve the user's active projects.
+--   3. Delete the caches of projects no longer returned (pruneCaches).
+--   4. Rebuild the cache of every active project.
 -----------------------------------------------------------------------
 function Kanboard.updateAllCaches()
 	Kanboard.closeTasks()
@@ -691,7 +748,14 @@ function Kanboard.updateAllCaches()
 		return
 	end
 	local projects = response.body.result
-	if not projects or #projects == 0 then
+	-- A JSON-RPC error arrives with HTTP 200 and no result: never prune then,
+	-- or a failed call would delete every cache.
+	if type(projects) ~= "table" then
+		editor.flashNotification("Unable to retrieve Kanboard projects.", "error")
+		return
+	end
+	Kanboard.pruneCaches(projects)
+	if #projects == 0 then
 		editor.flashNotification("Kanboard: No projects found.", "info")
 		return
 	end
