@@ -6,6 +6,49 @@
 Library = {}
 
 -----------------------------------------------------------------------
+-- Notification levels
+--
+-- Library.notify(level, message) shows a notification only when the
+-- configured verbosity is at least `level`:
+--
+--   0  SILENT   nothing at all
+--   1  ERROR    errors (default)
+--   2  WARNING  + warnings
+--   3  INFO     + information when things went fine
+--   4  DEBUG    + debugging information
+--
+-- Errors are shown as error notifications, everything else as info;
+-- warnings are prefixed with "Warning: ".
+--
+-- Library.verbosity() returns the configured level. Here it returns the
+-- default; an integration layer that has its own configuration (see
+-- Kanboard.verbosity) replaces it, so Library stays free of any
+-- integration specifics.
+-----------------------------------------------------------------------
+Library.SILENT = 0
+Library.ERROR = 1
+Library.WARNING = 2
+Library.INFO = 3
+Library.DEBUG = 4
+
+function Library.verbosity()
+	return Library.ERROR
+end
+
+function Library.notify(level, message)
+	if Library.verbosity() < level then
+		return
+	end
+	if level == Library.ERROR then
+		editor.flashNotification(message, "error")
+	elseif level == Library.WARNING then
+		editor.flashNotification("Warning: " .. message, "info")
+	else
+		editor.flashNotification(message, "info")
+	end
+end
+
+-----------------------------------------------------------------------
 -- generateUuid()
 --
 -- Generates a random RFC4122 version-4 UUID, random variant (8,9,A,B)
@@ -208,7 +251,7 @@ function Library.currentTask()
             and toPos >= cursor
     ]]
 	if # tasks ~= 1 then
-		editor.flashNotification("Expected exactly one task, found " .. # tasks .. ".", "error")
+		Library.notify(Library.ERROR, "Expected exactly one task, found " .. # tasks .. ".")
 		-- return nil
 	end
 	local task = tasks[1]
@@ -248,13 +291,13 @@ command.define {
 	run = function()
 		local subtree = Library.currentSubtree()
 		if not subtree then
-			editor.flashNotification("No subtree found.", "error")
+			Library.notify(Library.ERROR, "No subtree found.")
 			return
 		end
 		local page = editor.prompt("Move subtree to page:", "Project/New project " .. os.date("%Y-%m-%d"))
 		local ok, err = Library.createPageWithText(page, subtree.text)
 		if not ok then
-			editor.flashNotification(err, "error")
+			Library.notify(Library.ERROR, err)
 			return
 		end
 		local text = editor.getText()
@@ -264,7 +307,7 @@ command.define {
 		end
 		editor.replaceRange(
 			headingEnd - 1, subtree.finish - 1, "\nMoved to: [[" .. page .. "]]")
-		editor.flashNotification("Subtree copied to '" .. page .. "'.")
+		Library.notify(Library.INFO, "Subtree copied to '" .. page .. "'.")
 	end
 }
 
@@ -299,9 +342,9 @@ command.define {
 		local uuid = Library.generateUuid()
 		local ok, value = Library.setFrontmatter("pageId", uuid, false)
 		if ok then
-			editor.flashNotification("pageId = " .. value)
+			Library.notify(Library.INFO, "pageId = " .. value)
 		else
-			editor.flashNotification("Existing pageId = " .. value)
+			Library.notify(Library.INFO, "Existing pageId = " .. value)
 		end
 	end
 }

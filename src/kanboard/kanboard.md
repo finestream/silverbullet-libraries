@@ -53,9 +53,22 @@ config.set {
       kbCloseDone = true, -- options mark tasks done in SB as closed in Kanboard when syncing status
       sbCachePath = "Kanboard", --Path on Silverbullet space where the tasks will be cached
       sbCacheRefreshHours = 6, --max cache age in hours
+      verbosity = 1, -- optional: which notifications to show, see below
   }
 }
 ```
+
+`verbosity` sets which notifications the library shows:
+
+| Level | Shows |
+|---|---|
+| `0` | nothing at all |
+| `1` | errors (default) |
+| `2` | errors and warnings, e.g. a task marked done in SB that no longer exists in Kanboard |
+| `3` | all of the above, and information when things went fine, e.g. "Task sent to Kanboard." or "Updated cache for 2 project(s)." |
+| `4` | all of the above, and debugging information, e.g. every HTTP response and the cache age |
+
+A value below 0 or above 4 is treated as 0 or 4. The older `debug = true` still works and means `verbosity = 4` when `verbosity` is not set.
 
 ## Usage
 
