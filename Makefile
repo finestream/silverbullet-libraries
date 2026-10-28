@@ -14,6 +14,7 @@ KB_BASE_URL ?= https://kanboard.mydomain.com
 KB_TOKEN ?= 5ec7e7
 KB_USERNAME ?= me@mydomain.com
 KB_PROJECT_ID ?= 1
+KB_VERBOSITY ?= 1
 IG_DIRECTORY ?= Images
 IG_COLS ?= 3
 IG_ROWS ?= 2
@@ -137,6 +138,9 @@ testspace: all
 	@printf '%s\n' '      kbCloseDone = false, -- close done tasks when syncing status' \
 		>> "$(TEST_TEST_DIR)/CONFIG.md"
 	@printf '%s\n' '      kbMoveDone = true, -- move done tasks to the last Kanboard column when syncing status' \
+		>> "$(TEST_TEST_DIR)/CONFIG.md"
+	@printf '      verbosity = %s, -- 0 silent, 1 errors, 2 +warnings, 3 +info, 4 +debug\n' \
+		"$(KB_VERBOSITY)" \
 		>> "$(TEST_TEST_DIR)/CONFIG.md"
 	@printf '%s\n' '  },' >> "$(TEST_TEST_DIR)/CONFIG.md"
 	@printf '%s\n' '  imagegallery = {' >> "$(TEST_TEST_DIR)/CONFIG.md"
@@ -262,6 +266,7 @@ help:
 	@printf "  KB_TOKEN\tKanboard token used in CONFIG.md\n"
 	@printf "  KB_USERNAME\tKanboard username used in CONFIG.md\n"
 	@printf "  KB_PROJECT_ID\tKanboard project ID used in CONFIG.md (default: 1)\n"
+	@printf "  KB_VERBOSITY\tKanboard notification level 0-4 used in CONFIG.md (default: 1)\n"
 	@printf "  IG_DIRECTORY\tImageGallery default directory used in CONFIG.md\n"
 	@printf "  IG_COLS\tImageGallery default columns used in CONFIG.md\n"
 	@printf "  IG_ROWS\tImageGallery default rows used in CONFIG.md\n"
