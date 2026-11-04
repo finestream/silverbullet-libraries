@@ -1,14 +1,14 @@
 ---
 tags: meta/template/page
 description: A policy (a rule that storage must meet) of the IT Asset Management library.
-command: "Policy: New"
-suggestedName: "${itam.pagePrefix()}Policy/"
+command: "ITAM: New Policy"
+suggestedName: "${ITAM.pagePrefix()}Policy/"
 confirmName: true
 frontmatter: |
   tags:
   - component
   - policy
-  type:  # ${itam.hint("policy")}
+  type:  # ${ITAM.hint("policy")}
   copies:  # the original included
   offsite:  # true or false
   frequency:  # e.g. daily, every 4 hours
@@ -19,4 +19,4 @@ frontmatter: |
 ---
 |^|
 
-${"$"}{views.page(_CTX.currentPage.name)}
+${"$"}{ITAM.views.page(_CTX.currentPage.name)}

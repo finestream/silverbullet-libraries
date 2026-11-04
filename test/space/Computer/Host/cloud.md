@@ -13,4 +13,4 @@ lastReviewed: "2026-01-15"
 
 Stands for every third-party provider.
 
-${views.page(_CTX.currentPage.name)}
+${ITAM.views.page(_CTX.currentPage.name)}

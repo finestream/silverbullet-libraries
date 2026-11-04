@@ -1,14 +1,14 @@
 ---
 tags: meta/template/page
 description: A job (something that runs on a schedule or at boot) of the IT Asset Management library.
-command: "Job: New"
-suggestedName: "${itam.pagePrefix()}Job/"
+command: "ITAM: New Job"
+suggestedName: "${ITAM.pagePrefix()}Job/"
 confirmName: true
 frontmatter: |
   tags:
   - component
   - job
-  type:  # ${itam.hint("job")}
+  type:  # ${ITAM.hint("job")}
   partOf:  # the host it runs on
   tool:  # e.g. timemachine, rsync
   schedule:  # e.g. daily 01:02, every 4 hours, boot
@@ -19,4 +19,4 @@ frontmatter: |
 ---
 |^|
 
-${"$"}{views.page(_CTX.currentPage.name)}
+${"$"}{ITAM.views.page(_CTX.currentPage.name)}

@@ -1,5 +1,5 @@
 Index of the policies of the test set-up.
 
-${views.index("policy")}
+${ITAM.views.index("policy")}
 
-${views.copies()}
+${ITAM.views.copies()}

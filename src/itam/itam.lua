@@ -1,14 +1,14 @@
 -----------------------------------------------------------------------
--- Package itam
+-- Package ITAM
 --
 -- IT Asset Management: configuration, shared lists, helpers and tag
 -- schemas
 --
--- Three globals: `itam` (configuration, lists, helpers, schemas),
--- `backup` (the chain) and `views` (what pages call). Everything else
--- is local.
+-- One global, `ITAM` (configuration, lists, helpers, schemas), with
+-- `ITAM.backup` (the chain) and `ITAM.views` (what pages call).
+-- Everything else is local.
 -----------------------------------------------------------------------
-itam = {}
+ITAM = {}
 
 -----------------------------------------------------------------------
 -- Configuration
@@ -19,7 +19,7 @@ itam = {}
 -- needs them; a page never does.
 -----------------------------------------------------------------------
 
-itam.defaults = {
+ITAM.defaults = {
 	-- Page prefixes under which the objects live; the views consider these pages only
 	roots = { "Computer/" },
 	-- Where the page templates create pages; the first root when not set
@@ -29,7 +29,7 @@ itam.defaults = {
 	-- The group of the hosts of type external in the architecture diagram
 	providers = "Providers",
 	-- Per kind (host, service, storage, network, policy, job, auth), a list of
-	-- values that replaces the default list of itam.types
+	-- values that replaces the default list of ITAM.types
 	types = {},
 	-- Decision records
 	dr = {
@@ -42,41 +42,41 @@ itam.defaults = {
 }
 
 -----------------------------------------------------------------------
--- itam.config()
+-- ITAM.config()
 --
 -- The configuration of this space merged over the defaults (`dr` one
 -- level deep)
 -----------------------------------------------------------------------
-function itam.config()
+function ITAM.config()
 	local set = config.get("itam", {}) or {}
 	local cfg = {}
-	for key, value in pairs(itam.defaults) do cfg[key] = value end
+	for key, value in pairs(ITAM.defaults) do cfg[key] = value end
 	for key, value in pairs(set) do
 		if key ~= "dr" then cfg[key] = value end
 	end
 	cfg.dr = {}
-	for key, value in pairs(itam.defaults.dr) do cfg.dr[key] = value end
+	for key, value in pairs(ITAM.defaults.dr) do cfg.dr[key] = value end
 	for key, value in pairs(set.dr or {}) do cfg.dr[key] = value end
 	return cfg
 end
 
 -----------------------------------------------------------------------
--- itam.pagePrefix()
+-- ITAM.pagePrefix()
 --
 -- Where the page templates create pages, e.g. "Computer/"
 -----------------------------------------------------------------------
-function itam.pagePrefix()
-	local cfg = itam.config()
+function ITAM.pagePrefix()
+	local cfg = ITAM.config()
 	return cfg.pagePrefix or cfg.roots[1] or ""
 end
 
 -----------------------------------------------------------------------
--- itam.drDefault(field)
+-- ITAM.drDefault(field)
 --
 -- A default value for a new decision: "deciders" or "owner"
 -----------------------------------------------------------------------
-function itam.drDefault(field)
-	return itam.config().dr[field] or ""
+function ITAM.drDefault(field)
+	return ITAM.config().dr[field] or ""
 end
 
 -----------------------------------------------------------------------
@@ -84,13 +84,13 @@ end
 -----------------------------------------------------------------------
 
 -----------------------------------------------------------------------
--- itam.types
+-- ITAM.types
 --
 -- Default `type` values per kind, and the `auth` values of a service;
 -- the order is also the sort order in the views. A space replaces a
 -- list with `types.<kind>`.
 -----------------------------------------------------------------------
-itam.types = {
+ITAM.types = {
 	host    = { "server", "nas", "mac", "pc", "pi", "mobile", "appliance", "external", "unused" },
 	service = { "container", "package", "system", "app", "external" },
 	storage = { "hdd", "ssd", "sd-card", "usb-stick", "raid", "luks", "lvm-pv", "lvm-vg",
@@ -101,37 +101,37 @@ itam.types = {
 	auth    = { "keycloak", "forward-auth", "own", "none", "n/a" },
 }
 -----------------------------------------------------------------------
--- itam.copyJobs
+-- ITAM.copyJobs
 --
 -- Job types that copy from source to target
 -----------------------------------------------------------------------
-itam.copyJobs = { backup = true, snapshot = true, sync = true }
+ITAM.copyJobs = { backup = true, snapshot = true, sync = true }
 
 -----------------------------------------------------------------------
--- itam.typesOf(kind)
+-- ITAM.typesOf(kind)
 --
 -- The allowed values of a kind in this space: the configured list,
 -- else the default
 -----------------------------------------------------------------------
-function itam.typesOf(kind)
-	return itam.config().types[kind] or itam.types[kind] or {}
+function ITAM.typesOf(kind)
+	return ITAM.config().types[kind] or ITAM.types[kind] or {}
 end
 
 -----------------------------------------------------------------------
--- itam.hint(what)
+-- ITAM.hint(what)
 --
 -- The allowed values of a list as text, for the comments of the page
 -- templates: "server, nas, …", or "free text" for a list the space
 -- left empty
 -----------------------------------------------------------------------
-function itam.hint(what)
+function ITAM.hint(what)
 	local values
 	if what == "sites" then
-		values = itam.config().sites
+		values = ITAM.config().sites
 	elseif what == "areas" then
-		values = itam.config().dr.areas
+		values = ITAM.config().dr.areas
 	else
-		values = itam.typesOf(what)
+		values = ITAM.typesOf(what)
 	end
 	if #values == 0 then return "free text" end
 	return table.concat(values, ", ")
@@ -142,23 +142,23 @@ end
 -----------------------------------------------------------------------
 
 -----------------------------------------------------------------------
--- itam.list(value)
+-- ITAM.list(value)
 --
 -- A frontmatter value as a list: nil -> {}, "x" -> {"x"}, {...} ->
 -- {...}
 -----------------------------------------------------------------------
-function itam.list(value)
+function ITAM.list(value)
 	if value == nil then return {} end
 	if type(value) == "table" then return value end
 	return { value }
 end
 
 -----------------------------------------------------------------------
--- itam.oneOf(value, values)
+-- ITAM.oneOf(value, values)
 --
 -- Whether `value` is one of `values`; an empty list accepts anything
 -----------------------------------------------------------------------
-function itam.oneOf(value, values)
+function ITAM.oneOf(value, values)
 	if #values == 0 then return true end
 	for _, v in ipairs(values) do
 		if v == value then return true end
@@ -167,125 +167,125 @@ function itam.oneOf(value, values)
 end
 
 -----------------------------------------------------------------------
--- itam.allOf(value, values)
+-- ITAM.allOf(value, values)
 --
 -- Every value of a list (or the single value) is one of `values`
 -----------------------------------------------------------------------
-function itam.allOf(value, values)
-	for _, v in ipairs(itam.list(value)) do
-		if not itam.oneOf(v, values) then return false end
+function ITAM.allOf(value, values)
+	for _, v in ipairs(ITAM.list(value)) do
+		if not ITAM.oneOf(v, values) then return false end
 	end
 	return true
 end
 
 -----------------------------------------------------------------------
--- itam.unlink(value)
+-- ITAM.unlink(value)
 --
 -- "[[Some/Page]]" -> "Some/Page"
 -----------------------------------------------------------------------
-function itam.unlink(value)
+function ITAM.unlink(value)
 	if type(value) ~= "string" then return nil end
 	return string.match(value, "^%[%[(.-)%]%]$") or value
 end
 
 -----------------------------------------------------------------------
--- itam.link(name)
+-- ITAM.link(name)
 --
 -- "Some/Page" -> "[[Some/Page]]"
 -----------------------------------------------------------------------
-function itam.link(name)
+function ITAM.link(name)
 	return "[[" .. name .. "]]"
 end
 
 -----------------------------------------------------------------------
--- itam.short(name)
+-- ITAM.short(name)
 --
 -- "Computer/Storage/volume1" -> "volume1"
 -----------------------------------------------------------------------
-function itam.short(name)
+function ITAM.short(name)
 	return string.match(name, "[^/]+$") or name
 end
 
 -----------------------------------------------------------------------
--- itam.hasTag(page, tagName)
+-- ITAM.hasTag(page, tagName)
 --
 -- Whether a page carries the tag.
 -----------------------------------------------------------------------
-function itam.hasTag(page, tagName)
-	for _, t in ipairs(itam.list(page.tags)) do
+function ITAM.hasTag(page, tagName)
+	for _, t in ipairs(ITAM.list(page.tags)) do
 		if t == tagName then return true end
 	end
 	return false
 end
 
 -----------------------------------------------------------------------
--- itam.inScope(name)
+-- ITAM.inScope(name)
 --
 -- Pages of this documentation: under one of the configured roots
 -----------------------------------------------------------------------
-function itam.inScope(name)
-	for _, root in ipairs(itam.config().roots) do
+function ITAM.inScope(name)
+	for _, root in ipairs(ITAM.config().roots) do
 		if string.sub(name, 1, #root) == root then return true end
 	end
 	return false
 end
 
 -----------------------------------------------------------------------
--- itam.pages(tagName)
+-- ITAM.pages(tagName)
 --
 -- The only two queries: all pages with a tag, and one page by its name
 -----------------------------------------------------------------------
-function itam.pages(tagName)
+function ITAM.pages(tagName)
 	return query[[from index.pages(tagName)]]
 end
 
 -----------------------------------------------------------------------
--- itam.page(name)
+-- ITAM.page(name)
 --
 -- One page by its name; nil when it is not indexed.
 -----------------------------------------------------------------------
-function itam.page(name)
+function ITAM.page(name)
 	local found = query[[from p = index.pages() where p.name == name]]
 	return found[1]
 end
 
 -----------------------------------------------------------------------
--- itam.byName(tagName)
+-- ITAM.byName(tagName)
 --
 -- Pages with a tag, keyed by name
 -----------------------------------------------------------------------
-function itam.byName(tagName)
+function ITAM.byName(tagName)
 	local byName = {}
-	for _, page in ipairs(itam.pages(tagName)) do byName[page.name] = page end
+	for _, page in ipairs(ITAM.pages(tagName)) do byName[page.name] = page end
 	return byName
 end
 
 -----------------------------------------------------------------------
--- itam.copies(job)
+-- ITAM.copies(job)
 --
 -- The copies a job makes, as { from, to } page names. A snapshot keeps
 -- its copy on the same storage, whatever else is listed as target.
 -----------------------------------------------------------------------
-function itam.copies(job)
+function ITAM.copies(job)
 	local copies = {}
-	if not itam.copyJobs[job.type] then return copies end
-	for _, source in ipairs(itam.list(job.source)) do
-		local targets = (job.type == "snapshot") and { source } or itam.list(job.target)
+	if not ITAM.copyJobs[job.type] then return copies end
+	for _, source in ipairs(ITAM.list(job.source)) do
+		local targets = (job.type == "snapshot") and { source } or ITAM.list(job.target)
 		for _, target in ipairs(targets) do
-			table.insert(copies, { from = itam.unlink(source), to = itam.unlink(target) })
+			table.insert(copies, { from = ITAM.unlink(source), to = ITAM.unlink(target) })
 		end
 	end
 	return copies
 end
 
 -----------------------------------------------------------------------
--- itam.flowchart()
+-- ITAM.flowchart()
 --
 -- A Mermaid flowchart, built box by box: every box opens its page; a
 -- box can sit in a named group (drawn as a subgraph). Groups come
 -- first, then loose boxes, then edges.
 -----------------------------------------------------------------------
-function itam.flowchart()
+function ITAM.flowchart()
 	local chart = { groups = {}, groupOrder = {}, loose = {}, edges = {}, drawn = {}, size = 0 }
 
 	function chart.box(name, label, group, shape)
@@ -300,7 +300,7 @@ function itam.flowchart()
 			end
 			into = chart.groups[group]
 		end
-		table.insert(into, { kind = "node", id = name, label = label or itam.short(name), shape = shape })
+		table.insert(into, { kind = "node", id = name, label = label or ITAM.short(name), shape = shape })
 		table.insert(into, { kind = "click", id = name, target = name })
 	end
 
@@ -315,7 +315,7 @@ function itam.flowchart()
 			if chart.groups[group] and not placed[group] then
 				placed[group] = true
 				table.insert(elements, {
-					kind = "subgraph", id = "group_" .. group, label = itam.short(group),
+					kind = "subgraph", id = "group_" .. group, label = ITAM.short(group),
 					elements = chart.groups[group],
 				})
 			end
@@ -419,8 +419,8 @@ end
 -- for `kind`
 -----------------------------------------------------------------------
 local function checkType(kind, value)
-	local allowed = itam.typesOf(kind)
-	if not itam.allOf(value, allowed) then
+	local allowed = ITAM.typesOf(kind)
+	if not ITAM.allOf(value, allowed) then
 		return "type must be one of " .. table.concat(allowed, ", ")
 	end
 end
@@ -432,8 +432,8 @@ end
 -- space.
 -----------------------------------------------------------------------
 local function checkSite(value)
-	local sites = itam.config().sites
-	if value ~= nil and not itam.oneOf(value, sites) then
+	local sites = ITAM.config().sites
+	if value ~= nil and not ITAM.oneOf(value, sites) then
 		return "location must be one of " .. table.concat(sites, ", ")
 	end
 end
@@ -458,9 +458,9 @@ tag.define {
 tag.define {
 	name = "host",
 	schema = object({ "type", "network", "status" }, {
-		type     = configured(itam.typesOf("host")),
+		type     = configured(ITAM.typesOf("host")),
 		role     = text,
-		location = nullableConfigured(itam.config().sites), -- every host except external
+		location = nullableConfigured(ITAM.config().sites), -- every host except external
 		network  = links,
 		platform = text,                            -- OS and hardware
 		lanIp    = schema.nullableArray("string"),  -- fixed or reserved addresses
@@ -491,13 +491,13 @@ tag.define {
 tag.define {
 	name = "service",
 	schema = object({ "type", "partOf", "purpose", "auth", "status" }, {
-		type       = oneOrMore(itam.typesOf("service")), -- a list when it runs differently per host
+		type       = oneOrMore(ITAM.typesOf("service")), -- a list when it runs differently per host
 		partOf     = linkOrLinks,                   -- the host, or a list of hosts
 		purpose    = text,
 		provider   = text,                          -- for type external
 		hostname   = text,                          -- e.g. notes.example.org
 		lanIp      = schema.nullableArray("string"),-- macvlan containers
-		auth       = configured(itam.typesOf("auth")),
+		auth       = configured(ITAM.typesOf("auth")),
 		network    = links,
 		exposedVia = links,                         -- the reverse proxy
 		authVia    = links,                         -- the login service
@@ -507,8 +507,8 @@ tag.define {
 	validate = function(o)
 		local bad = checkType("service", o.type)
 		if bad then return bad end
-		if not itam.oneOf(o.auth, itam.typesOf("auth")) then
-			return "auth must be one of " .. table.concat(itam.typesOf("auth"), ", ")
+		if not ITAM.oneOf(o.auth, ITAM.typesOf("auth")) then
+			return "auth must be one of " .. table.concat(ITAM.typesOf("auth"), ", ")
 		end
 	end,
 	transform = icon("box"),
@@ -543,10 +543,10 @@ tag.define {
 tag.define {
 	name = "network",
 	schema = object({ "type" }, {
-		type     = configured(itam.typesOf("network")),
+		type     = configured(ITAM.typesOf("network")),
 		partOf   = link,                            -- the host, for Docker networks
 		cidr     = text,
-		location = nullableConfigured(itam.config().sites), -- for type lan
+		location = nullableConfigured(ITAM.config().sites), -- for type lan
 	}),
 	validate = function(o)
 		return checkType("network", o.type) or checkSite(o.location)
@@ -563,7 +563,7 @@ tag.define {
 tag.define {
 	name = "storage",
 	schema = object({ "type", "status" }, {
-		type       = configured(itam.typesOf("storage")),
+		type       = configured(ITAM.typesOf("storage")),
 		partOf     = linkOrLinks,                   -- the host, or a list for a replica
 		on         = links,                         -- the layer(s) below, one per host for a replica
 		policies   = links,
@@ -572,7 +572,7 @@ tag.define {
 		encrypted  = flag,
 		filesystem = text,
 		path       = text,
-		location   = nullableConfigured(itam.config().sites), -- where loose storage is kept
+		location   = nullableConfigured(ITAM.config().sites), -- where loose storage is kept
 		-- Physical devices (SD cards, USB sticks)
 		brand        = text,
 		model        = text,
@@ -604,7 +604,7 @@ tag.define {
 tag.define {
 	name = "policy",
 	schema = object({ "type" }, {
-		type               = configured(itam.typesOf("policy")),
+		type               = configured(ITAM.typesOf("policy")),
 		copies             = number,              -- the original included
 		offsite            = flag,
 		frequency          = text,
@@ -626,7 +626,7 @@ tag.define {
 tag.define {
 	name = "job",
 	schema = object({ "type", "partOf", "schedule" }, {
-		type       = configured(itam.typesOf("job")),
+		type       = configured(ITAM.typesOf("job")),
 		partOf     = link,                          -- the host it runs on
 		tool       = text,
 		schedule   = text,                          -- e.g. "daily 01:02", "every 4 hours", "boot"
@@ -639,7 +639,7 @@ tag.define {
 	validate = function(o)
 		local bad = checkType("job", o.type)
 		if bad then return bad end
-		if itam.copyJobs[o.type] and not o.source then
+		if ITAM.copyJobs[o.type] and not o.source then
 			return "A " .. o.type .. " job needs a source"
 		end
 		if (o.type == "backup" or o.type == "sync") and not o.target then

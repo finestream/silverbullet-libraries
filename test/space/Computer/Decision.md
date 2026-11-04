@@ -1,13 +1,13 @@
 Index of the decisions of the test set-up.
 
-${views.index("dr")}
+${ITAM.views.index("dr")}
 
 ## Graph
 
-${views.decisions { statuses = { "accepted", "provisional", "proposed" }, relations = { "dependsOn", "related", "supersedes" } }}
+${ITAM.views.decisions { statuses = { "accepted", "provisional", "proposed" }, relations = { "dependsOn", "related", "supersedes" } }}
 
 ## Attention
 
-${views.drDueForReview()}
+${ITAM.views.drDueForReview()}
 
-${views.drProvisional()}
+${ITAM.views.drProvisional()}

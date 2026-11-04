@@ -6,4 +6,4 @@ exercise the tables and diagrams.
 
 ## Architecture
 
-${views.architecture()}
+${ITAM.views.architecture()}

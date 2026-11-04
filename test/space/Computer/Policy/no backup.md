@@ -11,4 +11,4 @@ lastReviewed: "2026-01-15"
 
 Nothing protects this storage: a design choice for the layers below the data.
 
-${views.page(_CTX.currentPage.name)}
+${ITAM.views.page(_CTX.currentPage.name)}
