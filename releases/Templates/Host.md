@@ -1,16 +1,16 @@
 ---
 tags: meta/template/page
 description: A host (a machine or device) of the IT Asset Management library.
-command: "Host: New"
-suggestedName: "${itam.pagePrefix()}Host/"
+command: "ITAM: New Host"
+suggestedName: "${ITAM.pagePrefix()}Host/"
 confirmName: true
 frontmatter: |
   tags:
   - component
   - host
-  type:  # ${itam.hint("host")}
+  type:  # ${ITAM.hint("host")}
   role:  # what the host is for (not needed for type unused)
-  location:  # ${itam.hint("sites")}; leave out for type external
+  location:  # ${ITAM.hint("sites")}; leave out for type external
   network:  # the networks it is on, as links
   platform:  # OS and hardware
   lanIp:  # fixed or reserved LAN addresses only; leave out for DHCP
@@ -19,4 +19,4 @@ frontmatter: |
 ---
 |^|
 
-${"$"}{views.page(_CTX.currentPage.name)}
+${"$"}{ITAM.views.page(_CTX.currentPage.name)}

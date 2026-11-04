@@ -1,14 +1,14 @@
 ---
 tags: meta/template/page
 description: Storage (anything that holds data, from a disk to a cloud account) of the IT Asset Management library.
-command: "Storage: New"
-suggestedName: "${itam.pagePrefix()}Storage/"
+command: "ITAM: New Storage"
+suggestedName: "${ITAM.pagePrefix()}Storage/"
 confirmName: true
 frontmatter: |
   tags:
   - component
   - storage
-  type:  # ${itam.hint("storage")}
+  type:  # ${ITAM.hint("storage")}
   partOf:  # the host page(s); several for a replica kept in sync
   on:  # the layer(s) below, one per host for a replica
   policies:  # at least one; a "no backup" policy when nothing protects it
@@ -19,4 +19,4 @@ frontmatter: |
 ---
 |^|
 
-${"$"}{views.page(_CTX.currentPage.name)}
+${"$"}{ITAM.views.page(_CTX.currentPage.name)}

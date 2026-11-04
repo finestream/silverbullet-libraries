@@ -40,7 +40,7 @@ shown. The library writes nothing but the pages you create from its templates.
 * *Schemas* one `tag.define` per kind checks the fields and the allowed
   values, and decorates the page with an icon for its kind (a status dot for
   a decision). A broken page shows a lint warning in the editor.
-* *Views* every object page ends with `${views.page(_CTX.currentPage.name)}`,
+* *Views* every object page ends with `${ITAM.views.page(_CTX.currentPage.name)}`,
   which looks at the page's tags and shows the view for its kind, so a page
   that changes kind needs no edit.
 * *Backups as storage, policies and jobs* copy jobs (`backup`, `snapshot`,
@@ -48,17 +48,17 @@ shown. The library writes nothing but the pages you create from its templates.
   the policy they fulfil. The chain is never written down: the storage view
   follows source → job → target and counts the copies, the offsite copies
   included.
-* *Index pages and diagrams* `views.index(tag)` lists every object of one
-  kind, `views.copies()` the copies of every protected storage,
-  `views.architecture()` draws the hosts by site with the networks they are
-  on, `views.decisions {…}` draws the decisions as a graph.
+* *Index pages and diagrams* `ITAM.views.index(tag)` lists every object of one
+  kind, `ITAM.views.copies()` the copies of every protected storage,
+  `ITAM.views.architecture()` draws the hosts by site with the networks they are
+  on, `ITAM.views.decisions {…}` draws the decisions as a graph.
 * *Decision records* the tag `dr` after the ADR pattern: `status`
   (`proposed` → `provisional` → `accepted`, then `superseded` or `deprecated`;
   `rejected` is a dead end), `area`, `deciders`, `owner`, `lastReviewed`,
   `supersedes`, `dependsOn`, `related`. Two views list what needs attention:
-  `views.drDueForReview()` and `views.drProvisional()`.
-* *Page templates* one command per kind (`Host: New`, `Service: New`,
-  `Storage: New`, `Network: New`, `Policy: New`, `Job: New`, `Decision: New`)
+  `ITAM.views.drDueForReview()` and `ITAM.views.drProvisional()`.
+* *Page templates* one command per kind (`ITAM: New Host`, `ITAM: New Service`,
+  `ITAM: New Storage`, `ITAM: New Network`, `ITAM: New Policy`, `ITAM: New Job`, `ITAM: New Decision`)
   creates a page with the right fields, the allowed values as comments, and
   the view call.
 
@@ -68,16 +68,16 @@ shown. The library writes nothing but the pages you create from its templates.
   `Computer/Service/`, `Computer/Storage/`, `Computer/Network/`,
   `Computer/Policy/`, `Computer/Job/`, `Computer/Decision/`. The page name is
   the object's name; the host is never part of the path, only of `partOf`.
-* Next to each folder, an index page with `${views.index("host")}` and so on;
-  the policy index adds `${views.copies()}`; the entry page `Computer` shows
-  `${views.architecture()}`.
-* Create new pages with the templates (`Host: New`, …), fill in the
+* Next to each folder, an index page with `${ITAM.views.index("host")}` and so on;
+  the policy index adds `${ITAM.views.copies()}`; the entry page `Computer` shows
+  `${ITAM.views.architecture()}`.
+* Create new pages with the templates (`ITAM: New Host`, …), fill in the
   frontmatter, keep the prose for what no field can hold: why, how, caveats.
 * Every storage has at least one policy, the layers below the data included;
   a *no backup* policy says that nothing protects it.
-* Record decisions with `Decision: New`; an index page with
-  `${views.decisions { statuses = { "accepted", "provisional" } }}`,
-  `${views.drDueForReview()}` and `${views.drProvisional()}` shows where they
+* Record decisions with `ITAM: New Decision`; an index page with
+  `${ITAM.views.decisions { statuses = { "accepted", "provisional" } }}`,
+  `${ITAM.views.drDueForReview()}` and `${ITAM.views.drProvisional()}` shows where they
   stand.
 
 ## Configuration
@@ -130,18 +130,18 @@ run `System: Reload`, then `Space: Reindex`.
 
 | Call | Where |
 | --- | --- |
-| `${views.page(_CTX.currentPage.name)}` | the last line of every object page: the view for its kind |
-| `${views.index("host")}` | the index page next to each kind's folder (`host`, `service`, `storage`, `network`, `policy`, `job`, `dr`) |
-| `${views.copies()}` | the policy index: copies and offsite copies of every protected storage |
-| `${views.architecture()}` | the entry page: hosts by site, with their networks |
-| `${views.decisions { area = "…", statuses = { "…" }, relations = { "dependsOn", "related", "supersedes" } }}` | a decision index: the decisions as a graph; every option is optional |
-| `${views.drDueForReview(180)}` | a decision index: active decisions not reviewed for that many days (default: `reviewDays`) |
-| `${views.drProvisional()}` | a decision index: the provisional decisions, longest unchanged first |
+| `${ITAM.views.page(_CTX.currentPage.name)}` | the last line of every object page: the view for its kind |
+| `${ITAM.views.index("host")}` | the index page next to each kind's folder (`host`, `service`, `storage`, `network`, `policy`, `job`, `dr`) |
+| `${ITAM.views.copies()}` | the policy index: copies and offsite copies of every protected storage |
+| `${ITAM.views.architecture()}` | the entry page: hosts by site, with their networks |
+| `${ITAM.views.decisions { area = "…", statuses = { "…" }, relations = { "dependsOn", "related", "supersedes" } }}` | a decision index: the decisions as a graph; every option is optional |
+| `${ITAM.views.drDueForReview(180)}` | a decision index: active decisions not reviewed for that many days (default: `reviewDays`) |
+| `${ITAM.views.drProvisional()}` | a decision index: the provisional decisions, longest unchanged first |
 
-A page calls `views.*` only. The globals `itam` (configuration, lists,
-helpers, schemas) and `backup` (the chain) are the library's own; a space
-that restricts what pages may call (an allowlist) needs `views.*` and nothing
-else.
+A page calls `ITAM.views.*` only. The rest of the `ITAM` namespace
+(configuration, lists, helpers, schemas) and `ITAM.backup` (the chain) are the
+library's own; a space that restricts what pages may call (an allowlist) needs
+`ITAM.views.*` and nothing else.
 
 ### the views
 
@@ -177,25 +177,25 @@ everything into one block.
 
 ### building blocks
 
-Usable on their own in Space Lua: `views.linkedTo(tag, field, page)` (pages
-whose `field` points to `page`), `views.network(name)` (a network and
-everything on it), `views.stack(name)` (the storage layers around a storage;
-`nil` when it stands alone), `backup.chain(name)`, `backup.summary(name)`,
-`backup.diagram(name)`, and the helpers in `itam` (`itam.list`, `itam.link`,
-`itam.unlink`, `itam.short`, `itam.pages(tag)`, `itam.page(name)`,
-`itam.byName(tag)`, `itam.copies(job)`, `itam.flowchart()`).
+Usable on their own in Space Lua: `ITAM.views.linkedTo(tag, field, page)` (pages
+whose `field` points to `page`), `ITAM.views.network(name)` (a network and
+everything on it), `ITAM.views.stack(name)` (the storage layers around a storage;
+`nil` when it stands alone), `ITAM.backup.chain(name)`, `ITAM.backup.summary(name)`,
+`ITAM.backup.diagram(name)`, and the helpers in `ITAM` (`ITAM.list`, `ITAM.link`,
+`ITAM.unlink`, `ITAM.short`, `ITAM.pages(tag)`, `ITAM.page(name)`,
+`ITAM.byName(tag)`, `ITAM.copies(job)`, `ITAM.flowchart()`).
 
 ### commands
 
 Each page template adds one command that creates a page of its kind:
 
-* `Host: New`
-* `Service: New`
-* `Storage: New`
-* `Network: New`
-* `Policy: New`
-* `Job: New`
-* `Decision: New`
+* `ITAM: New Host`
+* `ITAM: New Service`
+* `ITAM: New Storage`
+* `ITAM: New Network`
+* `ITAM: New Policy`
+* `ITAM: New Job`
+* `ITAM: New Decision`
 
 ### page templates
 
@@ -221,16 +221,16 @@ lists the allowed values as comments.
 
 ```space-lua
 -----------------------------------------------------------------------
--- Package itam
+-- Package ITAM
 --
 -- IT Asset Management: configuration, shared lists, helpers and tag
 -- schemas
 --
--- Three globals: `itam` (configuration, lists, helpers, schemas),
--- `backup` (the chain) and `views` (what pages call). Everything else
--- is local.
+-- One global, `ITAM` (configuration, lists, helpers, schemas), with
+-- `ITAM.backup` (the chain) and `ITAM.views` (what pages call).
+-- Everything else is local.
 -----------------------------------------------------------------------
-itam = {}
+ITAM = {}
 
 -----------------------------------------------------------------------
 -- Configuration
@@ -241,7 +241,7 @@ itam = {}
 -- needs them; a page never does.
 -----------------------------------------------------------------------
 
-itam.defaults = {
+ITAM.defaults = {
 	-- Page prefixes under which the objects live; the views consider these pages only
 	roots = { "Computer/" },
 	-- Where the page templates create pages; the first root when not set
@@ -251,7 +251,7 @@ itam.defaults = {
 	-- The group of the hosts of type external in the architecture diagram
 	providers = "Providers",
 	-- Per kind (host, service, storage, network, policy, job, auth), a list of
-	-- values that replaces the default list of itam.types
+	-- values that replaces the default list of ITAM.types
 	types = {},
 	-- Decision records
 	dr = {
@@ -264,41 +264,41 @@ itam.defaults = {
 }
 
 -----------------------------------------------------------------------
--- itam.config()
+-- ITAM.config()
 --
 -- The configuration of this space merged over the defaults (`dr` one
 -- level deep)
 -----------------------------------------------------------------------
-function itam.config()
+function ITAM.config()
 	local set = config.get("itam", {}) or {}
 	local cfg = {}
-	for key, value in pairs(itam.defaults) do cfg[key] = value end
+	for key, value in pairs(ITAM.defaults) do cfg[key] = value end
 	for key, value in pairs(set) do
 		if key ~= "dr" then cfg[key] = value end
 	end
 	cfg.dr = {}
-	for key, value in pairs(itam.defaults.dr) do cfg.dr[key] = value end
+	for key, value in pairs(ITAM.defaults.dr) do cfg.dr[key] = value end
 	for key, value in pairs(set.dr or {}) do cfg.dr[key] = value end
 	return cfg
 end
 
 -----------------------------------------------------------------------
--- itam.pagePrefix()
+-- ITAM.pagePrefix()
 --
 -- Where the page templates create pages, e.g. "Computer/"
 -----------------------------------------------------------------------
-function itam.pagePrefix()
-	local cfg = itam.config()
+function ITAM.pagePrefix()
+	local cfg = ITAM.config()
 	return cfg.pagePrefix or cfg.roots[1] or ""
 end
 
 -----------------------------------------------------------------------
--- itam.drDefault(field)
+-- ITAM.drDefault(field)
 --
 -- A default value for a new decision: "deciders" or "owner"
 -----------------------------------------------------------------------
-function itam.drDefault(field)
-	return itam.config().dr[field] or ""
+function ITAM.drDefault(field)
+	return ITAM.config().dr[field] or ""
 end
 
 -----------------------------------------------------------------------
@@ -306,13 +306,13 @@ end
 -----------------------------------------------------------------------
 
 -----------------------------------------------------------------------
--- itam.types
+-- ITAM.types
 --
 -- Default `type` values per kind, and the `auth` values of a service;
 -- the order is also the sort order in the views. A space replaces a
 -- list with `types.<kind>`.
 -----------------------------------------------------------------------
-itam.types = {
+ITAM.types = {
 	host    = { "server", "nas", "mac", "pc", "pi", "mobile", "appliance", "external", "unused" },
 	service = { "container", "package", "system", "app", "external" },
 	storage = { "hdd", "ssd", "sd-card", "usb-stick", "raid", "luks", "lvm-pv", "lvm-vg",
@@ -323,37 +323,37 @@ itam.types = {
 	auth    = { "keycloak", "forward-auth", "own", "none", "n/a" },
 }
 -----------------------------------------------------------------------
--- itam.copyJobs
+-- ITAM.copyJobs
 --
 -- Job types that copy from source to target
 -----------------------------------------------------------------------
-itam.copyJobs = { backup = true, snapshot = true, sync = true }
+ITAM.copyJobs = { backup = true, snapshot = true, sync = true }
 
 -----------------------------------------------------------------------
--- itam.typesOf(kind)
+-- ITAM.typesOf(kind)
 --
 -- The allowed values of a kind in this space: the configured list,
 -- else the default
 -----------------------------------------------------------------------
-function itam.typesOf(kind)
-	return itam.config().types[kind] or itam.types[kind] or {}
+function ITAM.typesOf(kind)
+	return ITAM.config().types[kind] or ITAM.types[kind] or {}
 end
 
 -----------------------------------------------------------------------
--- itam.hint(what)
+-- ITAM.hint(what)
 --
 -- The allowed values of a list as text, for the comments of the page
 -- templates: "server, nas, …", or "free text" for a list the space
 -- left empty
 -----------------------------------------------------------------------
-function itam.hint(what)
+function ITAM.hint(what)
 	local values
 	if what == "sites" then
-		values = itam.config().sites
+		values = ITAM.config().sites
 	elseif what == "areas" then
-		values = itam.config().dr.areas
+		values = ITAM.config().dr.areas
 	else
-		values = itam.typesOf(what)
+		values = ITAM.typesOf(what)
 	end
 	if #values == 0 then return "free text" end
 	return table.concat(values, ", ")
@@ -364,23 +364,23 @@ end
 -----------------------------------------------------------------------
 
 -----------------------------------------------------------------------
--- itam.list(value)
+-- ITAM.list(value)
 --
 -- A frontmatter value as a list: nil -> {}, "x" -> {"x"}, {...} ->
 -- {...}
 -----------------------------------------------------------------------
-function itam.list(value)
+function ITAM.list(value)
 	if value == nil then return {} end
 	if type(value) == "table" then return value end
 	return { value }
 end
 
 -----------------------------------------------------------------------
--- itam.oneOf(value, values)
+-- ITAM.oneOf(value, values)
 --
 -- Whether `value` is one of `values`; an empty list accepts anything
 -----------------------------------------------------------------------
-function itam.oneOf(value, values)
+function ITAM.oneOf(value, values)
 	if #values == 0 then return true end
 	for _, v in ipairs(values) do
 		if v == value then return true end
@@ -389,125 +389,125 @@ function itam.oneOf(value, values)
 end
 
 -----------------------------------------------------------------------
--- itam.allOf(value, values)
+-- ITAM.allOf(value, values)
 --
 -- Every value of a list (or the single value) is one of `values`
 -----------------------------------------------------------------------
-function itam.allOf(value, values)
-	for _, v in ipairs(itam.list(value)) do
-		if not itam.oneOf(v, values) then return false end
+function ITAM.allOf(value, values)
+	for _, v in ipairs(ITAM.list(value)) do
+		if not ITAM.oneOf(v, values) then return false end
 	end
 	return true
 end
 
 -----------------------------------------------------------------------
--- itam.unlink(value)
+-- ITAM.unlink(value)
 --
 -- "[[Some/Page]]" -> "Some/Page"
 -----------------------------------------------------------------------
-function itam.unlink(value)
+function ITAM.unlink(value)
 	if type(value) ~= "string" then return nil end
 	return string.match(value, "^%[%[(.-)%]%]$") or value
 end
 
 -----------------------------------------------------------------------
--- itam.link(name)
+-- ITAM.link(name)
 --
 -- "Some/Page" -> "[[Some/Page]]"
 -----------------------------------------------------------------------
-function itam.link(name)
+function ITAM.link(name)
 	return "[[" .. name .. "]]"
 end
 
 -----------------------------------------------------------------------
--- itam.short(name)
+-- ITAM.short(name)
 --
 -- "Computer/Storage/volume1" -> "volume1"
 -----------------------------------------------------------------------
-function itam.short(name)
+function ITAM.short(name)
 	return string.match(name, "[^/]+$") or name
 end
 
 -----------------------------------------------------------------------
--- itam.hasTag(page, tagName)
+-- ITAM.hasTag(page, tagName)
 --
 -- Whether a page carries the tag.
 -----------------------------------------------------------------------
-function itam.hasTag(page, tagName)
-	for _, t in ipairs(itam.list(page.tags)) do
+function ITAM.hasTag(page, tagName)
+	for _, t in ipairs(ITAM.list(page.tags)) do
 		if t == tagName then return true end
 	end
 	return false
 end
 
 -----------------------------------------------------------------------
--- itam.inScope(name)
+-- ITAM.inScope(name)
 --
 -- Pages of this documentation: under one of the configured roots
 -----------------------------------------------------------------------
-function itam.inScope(name)
-	for _, root in ipairs(itam.config().roots) do
+function ITAM.inScope(name)
+	for _, root in ipairs(ITAM.config().roots) do
 		if string.sub(name, 1, #root) == root then return true end
 	end
 	return false
 end
 
 -----------------------------------------------------------------------
--- itam.pages(tagName)
+-- ITAM.pages(tagName)
 --
 -- The only two queries: all pages with a tag, and one page by its name
 -----------------------------------------------------------------------
-function itam.pages(tagName)
+function ITAM.pages(tagName)
 	return query[[from index.pages(tagName)]]
 end
 
 -----------------------------------------------------------------------
--- itam.page(name)
+-- ITAM.page(name)
 --
 -- One page by its name; nil when it is not indexed.
 -----------------------------------------------------------------------
-function itam.page(name)
+function ITAM.page(name)
 	local found = query[[from p = index.pages() where p.name == name]]
 	return found[1]
 end
 
 -----------------------------------------------------------------------
--- itam.byName(tagName)
+-- ITAM.byName(tagName)
 --
 -- Pages with a tag, keyed by name
 -----------------------------------------------------------------------
-function itam.byName(tagName)
+function ITAM.byName(tagName)
 	local byName = {}
-	for _, page in ipairs(itam.pages(tagName)) do byName[page.name] = page end
+	for _, page in ipairs(ITAM.pages(tagName)) do byName[page.name] = page end
 	return byName
 end
 
 -----------------------------------------------------------------------
--- itam.copies(job)
+-- ITAM.copies(job)
 --
 -- The copies a job makes, as { from, to } page names. A snapshot keeps
 -- its copy on the same storage, whatever else is listed as target.
 -----------------------------------------------------------------------
-function itam.copies(job)
+function ITAM.copies(job)
 	local copies = {}
-	if not itam.copyJobs[job.type] then return copies end
-	for _, source in ipairs(itam.list(job.source)) do
-		local targets = (job.type == "snapshot") and { source } or itam.list(job.target)
+	if not ITAM.copyJobs[job.type] then return copies end
+	for _, source in ipairs(ITAM.list(job.source)) do
+		local targets = (job.type == "snapshot") and { source } or ITAM.list(job.target)
 		for _, target in ipairs(targets) do
-			table.insert(copies, { from = itam.unlink(source), to = itam.unlink(target) })
+			table.insert(copies, { from = ITAM.unlink(source), to = ITAM.unlink(target) })
 		end
 	end
 	return copies
 end
 
 -----------------------------------------------------------------------
--- itam.flowchart()
+-- ITAM.flowchart()
 --
 -- A Mermaid flowchart, built box by box: every box opens its page; a
 -- box can sit in a named group (drawn as a subgraph). Groups come
 -- first, then loose boxes, then edges.
 -----------------------------------------------------------------------
-function itam.flowchart()
+function ITAM.flowchart()
 	local chart = { groups = {}, groupOrder = {}, loose = {}, edges = {}, drawn = {}, size = 0 }
 
 	function chart.box(name, label, group, shape)
@@ -522,7 +522,7 @@ function itam.flowchart()
 			end
 			into = chart.groups[group]
 		end
-		table.insert(into, { kind = "node", id = name, label = label or itam.short(name), shape = shape })
+		table.insert(into, { kind = "node", id = name, label = label or ITAM.short(name), shape = shape })
 		table.insert(into, { kind = "click", id = name, target = name })
 	end
 
@@ -537,7 +537,7 @@ function itam.flowchart()
 			if chart.groups[group] and not placed[group] then
 				placed[group] = true
 				table.insert(elements, {
-					kind = "subgraph", id = "group_" .. group, label = itam.short(group),
+					kind = "subgraph", id = "group_" .. group, label = ITAM.short(group),
 					elements = chart.groups[group],
 				})
 			end
@@ -641,8 +641,8 @@ end
 -- for `kind`
 -----------------------------------------------------------------------
 local function checkType(kind, value)
-	local allowed = itam.typesOf(kind)
-	if not itam.allOf(value, allowed) then
+	local allowed = ITAM.typesOf(kind)
+	if not ITAM.allOf(value, allowed) then
 		return "type must be one of " .. table.concat(allowed, ", ")
 	end
 end
@@ -654,8 +654,8 @@ end
 -- space.
 -----------------------------------------------------------------------
 local function checkSite(value)
-	local sites = itam.config().sites
-	if value ~= nil and not itam.oneOf(value, sites) then
+	local sites = ITAM.config().sites
+	if value ~= nil and not ITAM.oneOf(value, sites) then
 		return "location must be one of " .. table.concat(sites, ", ")
 	end
 end
@@ -680,9 +680,9 @@ tag.define {
 tag.define {
 	name = "host",
 	schema = object({ "type", "network", "status" }, {
-		type     = configured(itam.typesOf("host")),
+		type     = configured(ITAM.typesOf("host")),
 		role     = text,
-		location = nullableConfigured(itam.config().sites), -- every host except external
+		location = nullableConfigured(ITAM.config().sites), -- every host except external
 		network  = links,
 		platform = text,                            -- OS and hardware
 		lanIp    = schema.nullableArray("string"),  -- fixed or reserved addresses
@@ -713,13 +713,13 @@ tag.define {
 tag.define {
 	name = "service",
 	schema = object({ "type", "partOf", "purpose", "auth", "status" }, {
-		type       = oneOrMore(itam.typesOf("service")), -- a list when it runs differently per host
+		type       = oneOrMore(ITAM.typesOf("service")), -- a list when it runs differently per host
 		partOf     = linkOrLinks,                   -- the host, or a list of hosts
 		purpose    = text,
 		provider   = text,                          -- for type external
 		hostname   = text,                          -- e.g. notes.example.org
 		lanIp      = schema.nullableArray("string"),-- macvlan containers
-		auth       = configured(itam.typesOf("auth")),
+		auth       = configured(ITAM.typesOf("auth")),
 		network    = links,
 		exposedVia = links,                         -- the reverse proxy
 		authVia    = links,                         -- the login service
@@ -729,8 +729,8 @@ tag.define {
 	validate = function(o)
 		local bad = checkType("service", o.type)
 		if bad then return bad end
-		if not itam.oneOf(o.auth, itam.typesOf("auth")) then
-			return "auth must be one of " .. table.concat(itam.typesOf("auth"), ", ")
+		if not ITAM.oneOf(o.auth, ITAM.typesOf("auth")) then
+			return "auth must be one of " .. table.concat(ITAM.typesOf("auth"), ", ")
 		end
 	end,
 	transform = icon("box"),
@@ -765,10 +765,10 @@ tag.define {
 tag.define {
 	name = "network",
 	schema = object({ "type" }, {
-		type     = configured(itam.typesOf("network")),
+		type     = configured(ITAM.typesOf("network")),
 		partOf   = link,                            -- the host, for Docker networks
 		cidr     = text,
-		location = nullableConfigured(itam.config().sites), -- for type lan
+		location = nullableConfigured(ITAM.config().sites), -- for type lan
 	}),
 	validate = function(o)
 		return checkType("network", o.type) or checkSite(o.location)
@@ -785,7 +785,7 @@ tag.define {
 tag.define {
 	name = "storage",
 	schema = object({ "type", "status" }, {
-		type       = configured(itam.typesOf("storage")),
+		type       = configured(ITAM.typesOf("storage")),
 		partOf     = linkOrLinks,                   -- the host, or a list for a replica
 		on         = links,                         -- the layer(s) below, one per host for a replica
 		policies   = links,
@@ -794,7 +794,7 @@ tag.define {
 		encrypted  = flag,
 		filesystem = text,
 		path       = text,
-		location   = nullableConfigured(itam.config().sites), -- where loose storage is kept
+		location   = nullableConfigured(ITAM.config().sites), -- where loose storage is kept
 		-- Physical devices (SD cards, USB sticks)
 		brand        = text,
 		model        = text,
@@ -826,7 +826,7 @@ tag.define {
 tag.define {
 	name = "policy",
 	schema = object({ "type" }, {
-		type               = configured(itam.typesOf("policy")),
+		type               = configured(ITAM.typesOf("policy")),
 		copies             = number,              -- the original included
 		offsite            = flag,
 		frequency          = text,
@@ -848,7 +848,7 @@ tag.define {
 tag.define {
 	name = "job",
 	schema = object({ "type", "partOf", "schedule" }, {
-		type       = configured(itam.typesOf("job")),
+		type       = configured(ITAM.typesOf("job")),
 		partOf     = link,                          -- the host it runs on
 		tool       = text,
 		schedule   = text,                          -- e.g. "daily 01:02", "every 4 hours", "boot"
@@ -861,7 +861,7 @@ tag.define {
 	validate = function(o)
 		local bad = checkType("job", o.type)
 		if bad then return bad end
-		if itam.copyJobs[o.type] and not o.source then
+		if ITAM.copyJobs[o.type] and not o.source then
 			return "A " .. o.type .. " job needs a source"
 		end
 		if (o.type == "backup" or o.type == "sync") and not o.target then
@@ -872,28 +872,28 @@ tag.define {
 }
 
 -----------------------------------------------------------------------
--- Package backup
+-- Package ITAM.backup
 --
 -- Backup chain.
 --
 -- Three functions, all starting from a storage page and following the
--- copies of the copy jobs (itam.copies) from source to target. `rows`
+-- copies of the copy jobs (ITAM.copies) from source to target. `rows`
 -- and `pages` are optional: a view that needs several of them computes
 -- the chain and the component pages once.
 -----------------------------------------------------------------------
-backup = {}
+ITAM.backup = {}
 
 -----------------------------------------------------------------------
--- backup.chain(start, jobs)
+-- ITAM.backup.chain(start, jobs)
 --
 -- Every copy step from `start` on, depth first, each storage followed
 -- once. A step: level, from, job, tool, schedule, to. `jobs` defaults
 -- to all job pages.
 -----------------------------------------------------------------------
-function backup.chain(start, jobs)
+function ITAM.backup.chain(start, jobs)
 	local stepsFrom = {}
-	for _, job in ipairs(jobs or itam.pages("job")) do
-		for _, copy in ipairs(itam.copies(job)) do
+	for _, job in ipairs(jobs or ITAM.pages("job")) do
+		for _, copy in ipairs(ITAM.copies(job)) do
 			stepsFrom[copy.from] = stepsFrom[copy.from] or {}
 			table.insert(stepsFrom[copy.from], { job = job, to = copy.to })
 		end
@@ -924,8 +924,8 @@ end
 -----------------------------------------------------------------------
 local function sitesOf(name, pages)
 	local page, sites = pages[name], {}
-	for _, value in ipairs(itam.list(page and page.partOf)) do
-		local host = pages[itam.unlink(value)]
+	for _, value in ipairs(ITAM.list(page and page.partOf)) do
+		local host = pages[ITAM.unlink(value)]
 		if host and host.type == "external" then
 			table.insert(sites, "external")
 		else
@@ -937,15 +937,15 @@ local function sitesOf(name, pages)
 end
 
 -----------------------------------------------------------------------
--- backup.summary(start, rows, pages)
+-- ITAM.backup.summary(start, rows, pages)
 --
 -- Copies in the chain (the original included), and how many sit at
 -- another site. `rows` and `pages` are optional, to reuse a chain or
 -- the component pages.
 -----------------------------------------------------------------------
-function backup.summary(start, rows, pages)
-	rows = rows or backup.chain(start)
-	pages = pages or itam.byName("component")
+function ITAM.backup.summary(start, rows, pages)
+	rows = rows or ITAM.backup.chain(start)
+	pages = pages or ITAM.byName("component")
 	local home = sitesOf(start, pages)[1]
 	local copies, offsite, counted = 0, 0, {}
 	local function count(name)
@@ -962,62 +962,62 @@ function backup.summary(start, rows, pages)
 end
 
 -----------------------------------------------------------------------
--- backup.diagram(start, rows, pages)
+-- ITAM.backup.diagram(start, rows, pages)
 --
 -- The chain as a diagram: storage grouped by its (first) host, jobs as
 -- labelled arrows
 -----------------------------------------------------------------------
-function backup.diagram(start, rows, pages)
-	rows = rows or backup.chain(start)
-	pages = pages or itam.byName("component")
-	local chart = itam.flowchart()
+function ITAM.backup.diagram(start, rows, pages)
+	rows = rows or ITAM.backup.chain(start)
+	pages = pages or ITAM.byName("component")
+	local chart = ITAM.flowchart()
 
 	local function box(name)
-		local hosts = itam.list(pages[name] and pages[name].partOf)
-		local label = itam.short(name)
+		local hosts = ITAM.list(pages[name] and pages[name].partOf)
+		local label = ITAM.short(name)
 		if #hosts > 1 then                          -- a replica: drawn with its first host
 			local others = {}
-			for i = 2, #hosts do table.insert(others, itam.short(itam.unlink(hosts[i]))) end
+			for i = 2, #hosts do table.insert(others, ITAM.short(ITAM.unlink(hosts[i]))) end
 			label = label .. " (also on " .. table.concat(others, ", ") .. ")"
 		end
-		chart.box(name, label, itam.unlink(hosts[1]) or "Other", "rounded")
+		chart.box(name, label, ITAM.unlink(hosts[1]) or "Other", "rounded")
 	end
 
 	box(start)
 	for _, row in ipairs(rows) do
 		box(row.from)
 		box(row.to)
-		local label = (row.tool or itam.short(row.job)) .. (row.schedule and (", " .. row.schedule) or "")
+		local label = (row.tool or ITAM.short(row.job)) .. (row.schedule and (", " .. row.schedule) or "")
 		chart.edge(row.from, row.to, label)
 	end
 	return chart.render("LR")
 end
 
 -----------------------------------------------------------------------
--- Package views
+-- Package ITAM.views
 --
 -- Views.
 --
 -- What pages call. Every object page ends with the same call,
--- ${views.page(_CTX.currentPage.name)}: it looks at the page's tags
--- and shows the view for its kind. A view shows what is derived or
+-- ${ITAM.views.page(_CTX.currentPage.name)}: it looks at the tags of
+-- the page and shows the view for its kind. A view shows what is derived or
 -- points to the page; what the page itself states stays in its
 -- frontmatter. Every section is always shown; an empty one says
 -- *none*. Lists are sorted by `type`, in the order of the type list,
 -- then by name.
 -----------------------------------------------------------------------
-views = {}
+ITAM.views = {}
 
 -----------------------------------------------------------------------
--- views.linkedTo(tagName, field, target)
+-- ITAM.views.linkedTo(tagName, field, target)
 --
 -- Pages tagged `tagName` whose `field` (one link or a list of links)
 -- points to `target`
 -----------------------------------------------------------------------
-function views.linkedTo(tagName, field, target)
-	local wanted, found = itam.link(target), {}
-	for _, page in ipairs(itam.pages(tagName)) do
-		for _, value in ipairs(itam.list(page[field])) do
+function ITAM.views.linkedTo(tagName, field, target)
+	local wanted, found = ITAM.link(target), {}
+	for _, page in ipairs(ITAM.pages(tagName)) do
+		for _, value in ipairs(ITAM.list(page[field])) do
 			if value == wanted then
 				table.insert(found, page)
 				break
@@ -1035,10 +1035,10 @@ end
 -----------------------------------------------------------------------
 local function sortByType(pages, kind)
 	local rank = {}
-	for i, t in ipairs(itam.typesOf(kind)) do rank[t] = i end
+	for i, t in ipairs(ITAM.typesOf(kind)) do rank[t] = i end
 	table.sort(pages, function(a, b)
-		local rankA = rank[itam.list(a.type)[1]] or 999
-		local rankB = rank[itam.list(b.type)[1]] or 999
+		local rankA = rank[ITAM.list(a.type)[1]] or 999
+		local rankB = rank[ITAM.list(b.type)[1]] or 999
 		if rankA ~= rankB then return rankA < rankB end
 		return a.name < b.name
 	end)
@@ -1104,7 +1104,7 @@ end
 local function pageRows(pages, fields)
 	local rows = {}
 	for _, page in ipairs(pages) do
-		local row = { itam.link(page.name) }
+		local row = { ITAM.link(page.name) }
 		for i, field in ipairs(fields) do row[i + 1] = page[field] end
 		table.insert(rows, row)
 	end
@@ -1154,15 +1154,15 @@ local function compose(parts)
 end
 
 -----------------------------------------------------------------------
--- views.section
+-- ITAM.views.section
 --
--- views.section, views.pageRows, views.sortByName
+-- ITAM.views.section, ITAM.views.pageRows, ITAM.views.sortByName
 --
 -- Shared with the decision views in decisions.lua.
 -----------------------------------------------------------------------
-views.section = section
-views.pageRows = pageRows
-views.sortByName = sortByName
+ITAM.views.section = section
+ITAM.views.pageRows = pageRows
+ITAM.views.sortByName = sortByName
 
 -----------------------------------------------------------------------
 -- kinds
@@ -1185,14 +1185,14 @@ local kinds = {
 -----------------------------------------------------------------------
 
 -----------------------------------------------------------------------
--- views.network(name)
+-- ITAM.views.network(name)
 --
 -- A network and everything on it (hosts and services), arrows pointing
 -- to the network
 -----------------------------------------------------------------------
-function views.network(name)
-	local pages = views.linkedTo("component", "network", name)
-	local self = itam.page(name)
+function ITAM.views.network(name)
+	local pages = ITAM.views.linkedTo("component", "network", name)
+	local self = ITAM.page(name)
 	if self then table.insert(pages, 1, self) end
 	return mermaid.diagram(mermaid.relationGraph {
 		pages = pages, relations = { "network" }, direction = "LR",
@@ -1200,18 +1200,18 @@ function views.network(name)
 end
 
 -----------------------------------------------------------------------
--- views.stack(name)
+-- ITAM.views.stack(name)
 --
 -- The storage layers below `name` (along `on`) and above it; nil when
 -- it stands alone
 -----------------------------------------------------------------------
-function views.stack(name)
-	local byName = itam.byName("storage")
+function ITAM.views.stack(name)
+	local byName = ITAM.byName("storage")
 	local below, above = {}, {}
 	for upper, page in pairs(byName) do
 		below[upper] = {}
-		for _, value in ipairs(itam.list(page.on)) do
-			local lower = itam.unlink(value)
+		for _, value in ipairs(ITAM.list(page.on)) do
+			local lower = ITAM.unlink(value)
 			table.insert(below[upper], lower)
 			above[lower] = above[lower] or {}
 			table.insert(above[lower], upper)
@@ -1219,10 +1219,10 @@ function views.stack(name)
 	end
 	for _, uppers in pairs(above) do table.sort(uppers) end
 
-	local chart, edges = itam.flowchart(), {}
+	local chart, edges = ITAM.flowchart(), {}
 	local function box(n)
 		local page = byName[n]
-		chart.box(n, itam.short(n) .. ((page and page.type) and (" · " .. page.type) or ""), nil, "rounded")
+		chart.box(n, ITAM.short(n) .. ((page and page.type) and (" · " .. page.type) or ""), nil, "rounded")
 	end
 	local function edge(upper, lower)
 		local key = upper .. " > " .. lower
@@ -1256,31 +1256,31 @@ function views.stack(name)
 end
 
 -----------------------------------------------------------------------
--- views.architecture()
+-- ITAM.views.architecture()
 --
 -- Hosts grouped by site (free reservations left out), each with an
 -- arrow to the networks it is on: LANs, VPNs, internet. A LAN is drawn
 -- inside its site; the hosts of type external in the configured
 -- providers group.
 -----------------------------------------------------------------------
-function views.architecture()
-	local cfg = itam.config()
+function ITAM.views.architecture()
+	local cfg = ITAM.config()
 	local nets = {}
-	for _, page in ipairs(itam.pages("network")) do
+	for _, page in ipairs(ITAM.pages("network")) do
 		if page.type == "lan" or page.type == "tailnet" or page.type == "internet" then
 			nets[page.name] = page
 		end
 	end
 	local hosts = {}
-	for _, page in ipairs(itam.pages("host")) do
-		if page.type ~= "unused" and itam.inScope(page.name) then table.insert(hosts, page) end
+	for _, page in ipairs(ITAM.pages("host")) do
+		if page.type ~= "unused" and ITAM.inScope(page.name) then table.insert(hosts, page) end
 	end
 
-	local chart, used = itam.flowchart(), {}
+	local chart, used = ITAM.flowchart(), {}
 	for _, host in ipairs(sortByType(hosts, "host")) do
 		chart.box(host.name, nil, host.location or cfg.providers, "rounded")
-		for _, value in ipairs(itam.list(host.network)) do
-			local net = itam.unlink(value)
+		for _, value in ipairs(ITAM.list(host.network)) do
+			local net = ITAM.unlink(value)
 			if nets[net] then
 				used[net] = true
 				chart.edge(host.name, net)
@@ -1307,18 +1307,18 @@ end
 -----------------------------------------------------------------------
 
 -----------------------------------------------------------------------
--- views.index(tagName)
+-- ITAM.views.index(tagName)
 --
 -- Every object of one kind under the configured roots, sorted by type
 -----------------------------------------------------------------------
-function views.index(tagName)
+function ITAM.views.index(tagName)
 	local kind = kinds[tagName] or { title = tagName, fields = {} }
 	local pages = {}
-	for _, page in ipairs(itam.pages(tagName)) do
-		if itam.inScope(page.name) then table.insert(pages, page) end
+	for _, page in ipairs(ITAM.pages(tagName)) do
+		if ITAM.inScope(page.name) then table.insert(pages, page) end
 	end
 	local fields = {}
-	if itam.types[tagName] then
+	if ITAM.types[tagName] then
 		sortByType(pages, tagName)
 		table.insert(fields, "type")
 	else
@@ -1340,27 +1340,27 @@ end
 -- table rows
 -----------------------------------------------------------------------
 local function copyRows(storagePages, withType)
-	local pages, jobs, rows = itam.byName("component"), itam.pages("job"), {}
+	local pages, jobs, rows = ITAM.byName("component"), ITAM.pages("job"), {}
 	for _, page in ipairs(storagePages) do
-		local summary = backup.summary(page.name, backup.chain(page.name, jobs), pages)
+		local summary = ITAM.backup.summary(page.name, ITAM.backup.chain(page.name, jobs), pages)
 		if withType then
-			table.insert(rows, { itam.link(page.name), page.type, summary.copies, summary.offsite })
+			table.insert(rows, { ITAM.link(page.name), page.type, summary.copies, summary.offsite })
 		else
-			table.insert(rows, { itam.link(page.name), summary.copies, summary.offsite })
+			table.insert(rows, { ITAM.link(page.name), summary.copies, summary.offsite })
 		end
 	end
 	return rows
 end
 
 -----------------------------------------------------------------------
--- views.copies()
+-- ITAM.views.copies()
 --
 -- Every storage that has a policy, with its copies and offsite copies
 -----------------------------------------------------------------------
-function views.copies()
+function ITAM.views.copies()
 	local protected = {}
-	for _, page in ipairs(itam.pages("storage")) do
-		if page.policies and itam.inScope(page.name) then table.insert(protected, page) end
+	for _, page in ipairs(ITAM.pages("storage")) do
+		if page.policies and ITAM.inScope(page.name) then table.insert(protected, page) end
 	end
 	return widget.markdownBlock(section("Copies of each protected storage",
 		{ "storage", "copies", "offsite" }, copyRows(sortByName(protected), false)))
@@ -1377,11 +1377,11 @@ end
 -- connects to
 -----------------------------------------------------------------------
 local function hostView(name)
-	local members, parts = views.linkedTo("component", "partOf", name), {}
+	local members, parts = ITAM.views.linkedTo("component", "partOf", name), {}
 	for _, tagName in ipairs({ "service", "storage", "job", "network" }) do
 		local pages = {}
 		for _, page in ipairs(members) do
-			if itam.hasTag(page, tagName) then table.insert(pages, page) end
+			if ITAM.hasTag(page, tagName) then table.insert(pages, page) end
 		end
 		table.insert(parts, section(kinds[tagName].title, { "name", "type" },
 			pageRows(sortByType(pages, tagName), { "type" })))
@@ -1397,11 +1397,11 @@ end
 local function serviceView(name)
 	return {
 		section("Exposes", { "service", "hostname", "auth" },
-			pageRows(sortByName(views.linkedTo("service", "exposedVia", name)), { "hostname", "auth" })),
+			pageRows(sortByName(ITAM.views.linkedTo("service", "exposedVia", name)), { "hostname", "auth" })),
 		section("Logs in", { "service", "hostname" },
-			pageRows(sortByName(views.linkedTo("service", "authVia", name)), { "hostname" })),
+			pageRows(sortByName(ITAM.views.linkedTo("service", "authVia", name)), { "hostname" })),
 		section("Used by", { "name", "type" },
-			pageRows(sortByName(views.linkedTo("component", "dependsOn", name)), { "type" })),
+			pageRows(sortByName(ITAM.views.linkedTo("component", "dependsOn", name)), { "type" })),
 	}
 end
 
@@ -1411,20 +1411,20 @@ end
 -- Storage: its stack, and where its data is copied to
 -----------------------------------------------------------------------
 local function storageView(name)
-	local pages = itam.byName("component")
-	local chain = backup.chain(name)
-	local summary = backup.summary(name, chain, pages)
+	local pages = ITAM.byName("component")
+	local chain = ITAM.backup.chain(name)
+	local summary = ITAM.backup.summary(name, chain, pages)
 	local rows = {}
 	for _, step in ipairs(chain) do
-		table.insert(rows, { step.level, itam.link(step.from), itam.link(step.job),
-			step.tool, step.schedule, itam.link(step.to) })
+		table.insert(rows, { step.level, ITAM.link(step.from), ITAM.link(step.job),
+			step.tool, step.schedule, ITAM.link(step.to) })
 	end
 	local parts = {}
-	addDiagram(parts, "Stack", views.stack(name))
+	addDiagram(parts, "Stack", ITAM.views.stack(name))
 	table.insert(parts, section(
 		"Backup chain: " .. summary.copies .. " copies, " .. summary.offsite .. " offsite",
 		{ "level", "from", "job", "tool", "schedule", "to" }, rows))
-	addDiagram(parts, "Backup diagram", (#chain > 0) and backup.diagram(name, chain, pages) or nil)
+	addDiagram(parts, "Backup diagram", (#chain > 0) and ITAM.backup.diagram(name, chain, pages) or nil)
 	return parts
 end
 
@@ -1445,31 +1445,31 @@ end
 -- containers)
 -----------------------------------------------------------------------
 local function networkView(name, page)
-	local parts, members, onNetwork = {}, views.linkedTo("component", "network", name), {}
-	addDiagram(parts, "Diagram", views.network(name))
+	local parts, members, onNetwork = {}, ITAM.views.linkedTo("component", "network", name), {}
+	addDiagram(parts, "Diagram", ITAM.views.network(name))
 	local rows = {}
 	for _, kind in ipairs({ "host", "service" }) do
 		local pages = {}
 		for _, member in ipairs(members) do
 			onNetwork[member.name] = true
-			if itam.hasTag(member, kind) then table.insert(pages, member) end
+			if ITAM.hasTag(member, kind) then table.insert(pages, member) end
 		end
 		for _, member in ipairs(sortByType(pages, kind)) do
-			table.insert(rows, { itam.link(member.name), kind, member.type })
+			table.insert(rows, { ITAM.link(member.name), kind, member.type })
 		end
 	end
 	table.insert(parts, section("Members", { "name", "kind", "type" }, rows))
 
 	if page.type == "lan" then
 		local addresses = {}
-		for _, other in ipairs(itam.pages("component")) do
+		for _, other in ipairs(ITAM.pages("component")) do
 			local onIt = onNetwork[other.name]
-			for _, host in ipairs(itam.list(other.partOf)) do
-				if onNetwork[itam.unlink(host)] then onIt = true end
+			for _, host in ipairs(ITAM.list(other.partOf)) do
+				if onNetwork[ITAM.unlink(host)] then onIt = true end
 			end
 			if other.lanIp and onIt then
-				for _, ip in ipairs(itam.list(other.lanIp)) do
-					table.insert(addresses, { ip, itam.link(other.name), other.type, other.status })
+				for _, ip in ipairs(ITAM.list(other.lanIp)) do
+					table.insert(addresses, { ip, ITAM.link(other.name), other.type, other.status })
 				end
 			end
 		end
@@ -1488,9 +1488,9 @@ end
 local function policyView(name)
 	return {
 		section("Storage under this policy", { "storage", "type", "copies", "offsite" },
-			copyRows(sortByType(views.linkedTo("storage", "policies", name), "storage"), true)),
+			copyRows(sortByType(ITAM.views.linkedTo("storage", "policies", name), "storage"), true)),
 		section("Jobs implementing it", { "job", "type", "schedule" },
-			pageRows(sortByType(views.linkedTo("job", "implements", name), "job"), { "type", "schedule" })),
+			pageRows(sortByType(ITAM.views.linkedTo("job", "implements", name), "job"), { "type", "schedule" })),
 	}
 end
 
@@ -1501,8 +1501,8 @@ end
 -----------------------------------------------------------------------
 local function jobView(name, page)
 	local rows = {}
-	for _, copy in ipairs(itam.copies(page)) do
-		table.insert(rows, { itam.link(copy.from), itam.link(copy.to) })
+	for _, copy in ipairs(ITAM.copies(page)) do
+		table.insert(rows, { ITAM.link(copy.from), ITAM.link(copy.to) })
 	end
 	return { section("Copies", { "from", "to" }, rows) }
 end
@@ -1515,7 +1515,7 @@ end
 local function decisionView(name)
 	return {
 		section("Governs", { "name", "type" },
-			pageRows(sortByName(views.linkedTo("component", "decision", name)), { "type" })),
+			pageRows(sortByName(ITAM.views.linkedTo("component", "decision", name)), { "type" })),
 	}
 end
 
@@ -1535,15 +1535,15 @@ local viewsByTag = {
 }
 
 -----------------------------------------------------------------------
--- views.page(name)
+-- ITAM.views.page(name)
 --
 -- The view of any object page; the same call on every page
 -----------------------------------------------------------------------
-function views.page(name)
-	local page = itam.page(name)
+function ITAM.views.page(name)
+	local page = ITAM.page(name)
 	if not page then return widget.markdownBlock("*Not indexed yet.*") end
 	for _, entry in ipairs(viewsByTag) do
-		if itam.hasTag(page, entry.tag) then return compose(entry.view(name, page)) end
+		if ITAM.hasTag(page, entry.tag) then return compose(entry.view(name, page)) end
 	end
 	return widget.markdownBlock("*No view for this kind of page.*")
 end
@@ -1558,16 +1558,16 @@ end
 -----------------------------------------------------------------------
 
 -----------------------------------------------------------------------
--- itam.drDots
+-- ITAM.drDots
 --
 -- The status dot, used as page decoration and in the graph
 -----------------------------------------------------------------------
-itam.drDots = {
+ITAM.drDots = {
 	proposed = "🟡", provisional = "🔵", accepted = "🟢",
 	superseded = "⚪", deprecated = "🟠", rejected = "🔴",
 }
-itam.drStatuses = { "proposed", "provisional", "accepted", "superseded", "deprecated", "rejected" }
-itam.drActive = { proposed = true, provisional = true, accepted = true }
+ITAM.drStatuses = { "proposed", "provisional", "accepted", "superseded", "deprecated", "rejected" }
+ITAM.drActive = { proposed = true, provisional = true, accepted = true }
 
 -----------------------------------------------------------------------
 -- Tag dr
@@ -1576,7 +1576,7 @@ itam.drActive = { proposed = true, provisional = true, accepted = true }
 -- set when the library loads; `validate` checks the area again when a
 -- page is indexed.
 -----------------------------------------------------------------------
-local drConfig = itam.config().dr
+local drConfig = ITAM.config().dr
 local drSpec = {
 	name = "dr",
 	schema = {
@@ -1584,7 +1584,7 @@ local drSpec = {
 		properties = {
 			status = {
 				type = "string",
-				enum = itam.drStatuses,
+				enum = ITAM.drStatuses,
 				description = "Lifecycle state: proposed -> provisional -> accepted, then superseded or deprecated; rejected is a dead end."
 			},
 			date = {
@@ -1609,7 +1609,7 @@ local drSpec = {
 			},
 			area = {
 				type = "string",
-				description = "Which part of the space the decision belongs to; the allowed values are configured (itam.dr.areas)."
+				description = "Which part of the space the decision belongs to; the allowed values are configured (dr.areas under the `itam` key of CONFIG)."
 			},
 			supersedes = {
 				anyOf = { schema.array("string"), schema.null() },
@@ -1627,13 +1627,13 @@ local drSpec = {
 		required = { "status" },
 	},
 	validate = function(o)
-		local areas = itam.config().dr.areas
-		if o.area ~= nil and not itam.oneOf(o.area, areas) then
+		local areas = ITAM.config().dr.areas
+		if o.area ~= nil and not ITAM.oneOf(o.area, areas) then
 			return "area must be one of " .. table.concat(areas, ", ")
 		end
 	end,
 	transform = function(o)
-		o.pageDecoration = { prefix = (itam.drDots[o.status] or "📐") .. " " }
+		o.pageDecoration = { prefix = (ITAM.drDots[o.status] or "📐") .. " " }
 		return o
 	end,
 }
@@ -1642,7 +1642,7 @@ if drConfig.tagPage then drSpec.tagPage = drConfig.tagPage end
 tag.define(drSpec)
 
 -----------------------------------------------------------------------
--- views.decisions(opts)
+-- ITAM.views.decisions(opts)
 --
 -- Decision records as a graph: nodes carry the status dot and the id.
 -- opts.area (optional) keeps one area; opts.statuses (optional list)
@@ -1652,7 +1652,7 @@ tag.define(drSpec)
 -- selection are not drawn. opts.direction (default "TD") is the
 -- Mermaid direction.
 -----------------------------------------------------------------------
-function views.decisions(opts)
+function ITAM.views.decisions(opts)
 	opts = opts or {}
 	local relations = opts.relations or { "dependsOn" }
 	local keep = nil
@@ -1661,7 +1661,7 @@ function views.decisions(opts)
 		for _, s in ipairs(opts.statuses) do keep[s] = true end
 	end
 	local pages, selected = {}, {}
-	for _, page in ipairs(itam.pages("dr")) do
+	for _, page in ipairs(ITAM.pages("dr")) do
 		if (not opts.area or page.area == opts.area) and (not keep or keep[page.status]) then
 			table.insert(pages, page)
 			selected[page.name] = true
@@ -1669,17 +1669,17 @@ function views.decisions(opts)
 	end
 	table.sort(pages, function(a, b) return (a.id or 0) < (b.id or 0) end)
 
-	local chart = itam.flowchart()
+	local chart = ITAM.flowchart()
 	for _, page in ipairs(pages) do
-		local dot = itam.drDots[page.status] or "📐"
-		local label = dot .. " " .. itam.short(page.name)
+		local dot = ITAM.drDots[page.status] or "📐"
+		local label = dot .. " " .. ITAM.short(page.name)
 		if page.id then label = label .. " (" .. page.id .. ")" end
 		chart.box(page.name, label, nil, "rounded")
 	end
 	for _, page in ipairs(pages) do
 		for _, rel in ipairs(relations) do
-			for _, value in ipairs(itam.list(page[rel])) do
-				local target = itam.unlink(value)
+			for _, value in ipairs(ITAM.list(page[rel])) do
+				local target = ITAM.unlink(value)
 				if selected[target] then
 					chart.edge(page.name, target, (rel ~= "dependsOn") and rel or nil)
 				end
@@ -1704,19 +1704,19 @@ local function dayTime(text)
 end
 
 -----------------------------------------------------------------------
--- views.drDueForReview(days)
+-- ITAM.views.drDueForReview(days)
 --
 -- The active decisions (proposed, provisional, accepted) whose
 -- `lastReviewed` is missing or older than `days` (default: the
 -- configured reviewDays), oldest first
 -----------------------------------------------------------------------
-function views.drDueForReview(days)
-	days = days or itam.config().dr.reviewDays
+function ITAM.views.drDueForReview(days)
+	days = days or ITAM.config().dr.reviewDays
 	local limit = os.time() - days * 86400
 	local due = {}
-	for _, page in ipairs(itam.pages("dr")) do
+	for _, page in ipairs(ITAM.pages("dr")) do
 		local reviewed = dayTime(page.lastReviewed)
-		if itam.drActive[page.status] and (reviewed == nil or reviewed < limit) then
+		if ITAM.drActive[page.status] and (reviewed == nil or reviewed < limit) then
 			table.insert(due, page)
 		end
 	end
@@ -1725,20 +1725,20 @@ function views.drDueForReview(days)
 		if ra ~= rb then return ra < rb end
 		return (a.id or 0) < (b.id or 0)
 	end)
-	return widget.markdownBlock(views.section("Due for review (older than " .. days .. " days)",
+	return widget.markdownBlock(ITAM.views.section("Due for review (older than " .. days .. " days)",
 		{ "decision", "id", "owner", "last reviewed" },
-		views.pageRows(due, { "id", "owner", "lastReviewed" })))
+		ITAM.views.pageRows(due, { "id", "owner", "lastReviewed" })))
 end
 
 -----------------------------------------------------------------------
--- views.drProvisional()
+-- ITAM.views.drProvisional()
 --
 -- The provisional decisions with the days since their last change,
 -- longest unchanged first
 -----------------------------------------------------------------------
-function views.drProvisional()
+function ITAM.views.drProvisional()
 	local rows, pages = {}, {}
-	for _, page in ipairs(itam.pages("dr")) do
+	for _, page in ipairs(ITAM.pages("dr")) do
 		if page.status == "provisional" then table.insert(pages, page) end
 	end
 	table.sort(pages, function(a, b) return (a.lastModified or "") < (b.lastModified or "") end)
@@ -1746,9 +1746,9 @@ function views.drProvisional()
 	for _, page in ipairs(pages) do
 		local changed = dayTime(page.lastModified)
 		local days = changed and math.floor((now - changed) / 86400) or ""
-		table.insert(rows, { page.id, itam.link(page.name), days, page.lastReviewed })
+		table.insert(rows, { page.id, ITAM.link(page.name), days, page.lastReviewed })
 	end
-	return widget.markdownBlock(views.section("Provisional",
+	return widget.markdownBlock(ITAM.views.section("Provisional",
 		{ "id", "decision", "days since last change", "last reviewed" }, rows))
 end
 
