@@ -94,7 +94,7 @@ itam.types = {
 	host    = { "server", "nas", "mac", "pc", "pi", "mobile", "appliance", "external", "unused" },
 	service = { "container", "package", "system", "app", "external" },
 	storage = { "hdd", "ssd", "sd-card", "usb-stick", "raid", "luks", "lvm-pv", "lvm-vg",
-							"lvm-lv", "volume", "share", "folder", "repository", "cloud" },
+		"lvm-lv", "volume", "share", "folder", "repository", "cloud" },
 	network = { "lan", "tailnet", "internet", "docker-bridge", "docker-macvlan" },
 	policy  = { "backup", "snapshot", "retention" },
 	job     = { "backup", "snapshot", "sync", "update", "test", "scrub", "script" },
@@ -241,6 +241,8 @@ end
 
 -----------------------------------------------------------------------
 -- itam.page(name)
+--
+-- One page by its name; nil when it is not indexed.
 -----------------------------------------------------------------------
 function itam.page(name)
 	local found = query[[from p = index.pages() where p.name == name]]
@@ -371,6 +373,8 @@ end
 
 -----------------------------------------------------------------------
 -- nullableConfigured(values)
+--
+-- Like configured(values), and the field may be left out.
 -----------------------------------------------------------------------
 local function nullableConfigured(values)
 	if #values == 0 then return text end
@@ -423,6 +427,9 @@ end
 
 -----------------------------------------------------------------------
 -- checkSite(value)
+--
+-- "location must be one of …", or nil when `value` is allowed in this
+-- space.
 -----------------------------------------------------------------------
 local function checkSite(value)
 	local sites = itam.config().sites
@@ -507,14 +514,14 @@ tag.define {
 	transform = icon("box"),
 }
 
------------------------------------------------------------------------
--- date
---
--- Domain: an extra tag on a service of type external (one page per
--- domain); only the fields a domain adds, the service schema checks
--- the rest
------------------------------------------------------------------------
 local date = { type = "string", pattern = "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" } -- YYYY-MM-DD
+
+-----------------------------------------------------------------------
+-- Tag domain
+--
+-- An extra tag on a service of type external (one page per domain);
+-- only the fields a domain adds, the service schema checks the rest.
+-----------------------------------------------------------------------
 tag.define {
 	name = "domain",
 	schema = {
