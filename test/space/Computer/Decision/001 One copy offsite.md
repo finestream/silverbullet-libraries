@@ -19,4 +19,4 @@ Data that exists in one place only is lost with that place.
 ## Decision
 Every storage that holds data has at least one copy at another site.
 
-${views.page(_CTX.currentPage.name)}
+${ITAM.views.page(_CTX.currentPage.name)}

@@ -17,4 +17,4 @@ related:
 ## Decision
 Shares are snapshotted every four hours; the nightly backup copies the snapshot.
 
-${views.page(_CTX.currentPage.name)}
+${ITAM.views.page(_CTX.currentPage.name)}
