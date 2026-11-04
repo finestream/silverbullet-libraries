@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this repo is
 
-A collection of [SilverBullet](https://silverbullet.md) libraries written in Space-Lua. A "library" here is **not** a plug/JS bundle: it is a single markdown page that a user installs into their SilverBullet space via the Library Manager, containing documentation plus one ` ```space-lua ` code block. Two libraries so far: `kanboard` (SilverBullet ↔ Kanboard task sync) and `imagegallery` (paginated thumbnail grids of the images in a space).
+A collection of [SilverBullet](https://silverbullet.md) libraries written in Space-Lua. A "library" here is **not** a plug/JS bundle: it is a single markdown page that a user installs into their SilverBullet space via the Library Manager, containing documentation plus one ` ```space-lua ` code block. Three libraries so far: `kanboard` (SilverBullet ↔ Kanboard task sync), `imagegallery` (paginated thumbnail grids of the images in a space) and `itam` (IT asset management: tag schemas, views and page templates for documenting a set-up as pages).
 
 Users install from `REPO.md` (the repository index, consumed as a raw GitHub URL), which lists one `#meta/library/remote` block per library pointing at `releases/<Page>.md`.
 
@@ -50,12 +50,12 @@ Two things do give a real feedback loop, though:
 
 ### Adding a library
 
-Create `src/<lib>/` with `frontmatter.md`, a docs page, one or more `.lua` files, and the three `RELEASE_*` files (start at `0.1.0`); then in the Makefile add `<lib>` to `LIBRARIES` and define `<lib>_PAGE`, `<lib>_DOCS` and `<lib>_LUA` (the `_DOCS`/`_LUA` order *is* the concatenation order). Finally add the library to `REPO.md` and `README.md`. Everything else — build, testspace copy, release, bump, version — is generic.
+Create `src/<lib>/` with `frontmatter.md`, a docs page, one or more `.lua` files, and the three `RELEASE_*` files (start at `0.1.0`); then in the Makefile add `<lib>` to `LIBRARIES` and define `<lib>_PAGE`, `<lib>_DOCS` and `<lib>_LUA` (the `_DOCS`/`_LUA` order *is* the concatenation order). A library that ships extra pages or files (page templates, plugs) lists them in `<lib>_FILES` (paths relative to `src/<lib>/`, no spaces, since make splits on them) *and* under `files:` in its frontmatter: the build copies them next to the page, and SilverBullet installs them next to the library page in the space (`Library/Finestream/<path>`). Finally add the library to `REPO.md` and `README.md`. Everything else — build, testspace copy, release, bump, version — is generic.
 
 ### Generated files — do not edit
 
 - `test/build/*.md`, `test/test/**` — gitignored build output
-- `releases/<Page>.md`, `releases/<Page>.VERSION` — committed, but only ever written by `make release`
+- `releases/<Page>.md`, `releases/<Page>.VERSION`, the files of `<lib>_FILES` under `releases/` — committed, but only ever written by `make release`
 
 ## Source layout and assembly order
 
@@ -105,6 +105,18 @@ Those bracketed attributes are what SilverBullet's indexer exposes, so all looku
 **Page identity.** Pages get a `pageId` UUID in frontmatter; Kanboard tasks store it in their `reference` field and get an external link to `<sbBaseUrl>/pageId:<uuid>`. The `virtualPage` handler for `pageId:(.+)` resolves that back to a page and navigates, so links survive page renames. Never key anything off page names.
 
 **Round trip.** `Kanboard: Send Task` (`Ctrl-Alt-a` / `Ctrl-Cmd-a` on mac) takes the task under the cursor, creates it in Kanboard, then *replaces the source line with a live query* (`Kanboard.queryTask`) that renders the cached copy — so after sending, the page no longer owns the task text. Project/swimlane come from page frontmatter (`kbProjectId`, `kbSwimlaneId`) falling back to config. `Kanboard: Sync Status` pushes locally-completed tasks back (close and/or move to the last column per `kbCloseDone`/`kbMoveDone`), and `Kanboard: Remove Cache` deletes all `KanboardManaged` pages after an `editor.confirm`.
+
+## IT Asset Management architecture
+
+**Nothing is stored.** Every view is computed from the index when a page is shown; the library writes nothing but the pages created from its templates.
+
+**One namespace, built in this order:** `itam.lua` (`ITAM`: configuration, lists, helpers, the tag schemas), `backup.lua` (`ITAM.backup`: the chain), `views.lua` (`ITAM.views`: what pages call), and `decisions.lua`, which adds the `dr` tag and the decision views and so comes last. A page calls `ITAM.views.*` only; a space that restricts what pages may call needs nothing else on its allowlist. So a new function a page should call goes on `ITAM.views`, and everything else on `ITAM` or `ITAM.backup`.
+
+**Config** lives under the lowercase `itam` key, like `kanboard` and `imagegallery`, read with `config.get("itam", {})` and merged over `ITAM.defaults` by `ITAM.config()`; all of it is optional. No value of a particular space belongs in the code, the templates or `test/space/`. The schemas take the configured lists as enums when the library loads, and `validate` checks them again when a page is indexed, so a change to `CONFIG` needs `System: Reload`, then `Space: Reindex`. `make testspace` generates the section from the `ITAM_*` env vars, and `test/space/Computer/` holds a small made-up set-up with one page per kind.
+
+**Templates** are the files of `itam_FILES`, installed under `Library/Finestream/Templates/`. Their paths and allowed values come from `ITAM.pagePrefix()`, `ITAM.hint()` and `ITAM.drDefault()`. Their commands are `ITAM: New <Kind>`.
+
+**Tags** are set on the commit that holds the release files: `make release-<lib>` tags `HEAD`, which is the commit before them, so after the merge the tag is set again on the merge commit and only then pushed.
 
 ## Conventions
 
