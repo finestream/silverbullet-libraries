@@ -8,6 +8,7 @@ A collection of my libraries and plugins for [SilverBullet](https://silverbullet
 |---------|-------------|--------|
 | [Kanboard](src/kanboard/kanboard.md) | Integration between SilverBullet and Kanboard. | 🚧 In development |
 | [ImageGallery](src/imagegallery/imagegallery.md) | Paginated thumbnail galleries for the images in your space. | 🚧 In development |
+| [IT Asset Management](src/itam/itam.md) | Document hosts, services, networks, storage, policies, jobs and decisions as pages: tag schemas, generated views and diagrams, page templates. | 🚧 In development |
 
 Each library is versioned and released on its own; see `make help`.
 
