@@ -55,7 +55,7 @@ Create `src/<lib>/` with `frontmatter.md`, a docs page, one or more `.lua` files
 ### Generated files — do not edit
 
 - `test/build/*.md`, `test/test/**` — gitignored build output
-- `releases/<Page>.md`, `releases/<Page>.VERSION` — committed, but only ever written by `make release`
+- `releases/<Page>.md`, `releases/<Page>.VERSION`, the files of `<lib>_FILES` under `releases/` — committed, but only ever written by `make release`
 
 ## Source layout and assembly order
 
@@ -105,6 +105,18 @@ Those bracketed attributes are what SilverBullet's indexer exposes, so all looku
 **Page identity.** Pages get a `pageId` UUID in frontmatter; Kanboard tasks store it in their `reference` field and get an external link to `<sbBaseUrl>/pageId:<uuid>`. The `virtualPage` handler for `pageId:(.+)` resolves that back to a page and navigates, so links survive page renames. Never key anything off page names.
 
 **Round trip.** `Kanboard: Send Task` (`Ctrl-Alt-a` / `Ctrl-Cmd-a` on mac) takes the task under the cursor, creates it in Kanboard, then *replaces the source line with a live query* (`Kanboard.queryTask`) that renders the cached copy — so after sending, the page no longer owns the task text. Project/swimlane come from page frontmatter (`kbProjectId`, `kbSwimlaneId`) falling back to config. `Kanboard: Sync Status` pushes locally-completed tasks back (close and/or move to the last column per `kbCloseDone`/`kbMoveDone`), and `Kanboard: Remove Cache` deletes all `KanboardManaged` pages after an `editor.confirm`.
+
+## IT Asset Management architecture
+
+**Nothing is stored.** Every view is computed from the index when a page is shown; the library writes nothing but the pages created from its templates.
+
+**Three globals, in this order:** `itam.lua` (`itam`: configuration, lists, helpers, the tag schemas), `backup.lua` (`backup`: the chain), `views.lua` (`views`: what pages call), and `decisions.lua`, which adds the `dr` tag and the decision views to `itam` and `views` and so comes last. A page calls `views.*` only; a space that restricts what pages may call needs nothing else on its allowlist. So a new function a page should call goes on `views`, and everything else on `itam` or `backup`.
+
+**Config** lives under the `itam` key, read with `config.get("itam", {})` and merged over `itam.defaults` by `itam.config()`; all of it is optional. No value of a particular space belongs in the code, the templates or `test/space/`. The schemas take the configured lists as enums when the library loads, and `validate` checks them again when a page is indexed, so a change to `CONFIG` needs `System: Reload`, then `Space: Reindex`. `make testspace` generates the section from the `ITAM_*` env vars, and `test/space/Computer/` holds a small made-up set-up with one page per kind.
+
+**Templates** are the files of `itam_FILES`, installed under `Library/Finestream/Templates/`. Their paths and allowed values come from `itam.pagePrefix()`, `itam.hint()` and `itam.drDefault()`. Their commands are `<Kind>: New`, not `IT Asset Management: …`, because a command names the page it creates.
+
+**Tags** are set on the commit that holds the release files: `make release-<lib>` tags `HEAD`, which is the commit before them, so after the merge the tag is set again on the merge commit and only then pushed.
 
 ## Conventions
 

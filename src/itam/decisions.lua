@@ -20,6 +20,13 @@ itam.drDots = {
 itam.drStatuses = { "proposed", "provisional", "accepted", "superseded", "deprecated", "rejected" }
 itam.drActive = { proposed = true, provisional = true, accepted = true }
 
+-----------------------------------------------------------------------
+-- Tag dr
+--
+-- The configured areas become an enum and the configured tag page is
+-- set when the library loads; `validate` checks the area again when a
+-- page is indexed.
+-----------------------------------------------------------------------
 local drConfig = itam.config().dr
 local drSpec = {
 	name = "dr",

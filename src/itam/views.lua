@@ -162,7 +162,9 @@ end
 -----------------------------------------------------------------------
 -- views.section
 --
--- Shared with the decision views below
+-- views.section, views.pageRows, views.sortByName
+--
+-- Shared with the decision views in decisions.lua.
 -----------------------------------------------------------------------
 views.section = section
 views.pageRows = pageRows
