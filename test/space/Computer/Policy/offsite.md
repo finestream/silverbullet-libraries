@@ -14,4 +14,4 @@ lastReviewed: "2026-01-15"
 ---
 # offsite
 
-${views.page(_CTX.currentPage.name)}
+${ITAM.views.page(_CTX.currentPage.name)}

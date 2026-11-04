@@ -1,29 +1,29 @@
 
 -----------------------------------------------------------------------
--- Package views
+-- Package ITAM.views
 --
 -- Views.
 --
 -- What pages call. Every object page ends with the same call,
--- ${views.page(_CTX.currentPage.name)}: it looks at the page's tags
--- and shows the view for its kind. A view shows what is derived or
+-- ${ITAM.views.page(_CTX.currentPage.name)}: it looks at the tags of
+-- the page and shows the view for its kind. A view shows what is derived or
 -- points to the page; what the page itself states stays in its
 -- frontmatter. Every section is always shown; an empty one says
 -- *none*. Lists are sorted by `type`, in the order of the type list,
 -- then by name.
 -----------------------------------------------------------------------
-views = {}
+ITAM.views = {}
 
 -----------------------------------------------------------------------
--- views.linkedTo(tagName, field, target)
+-- ITAM.views.linkedTo(tagName, field, target)
 --
 -- Pages tagged `tagName` whose `field` (one link or a list of links)
 -- points to `target`
 -----------------------------------------------------------------------
-function views.linkedTo(tagName, field, target)
-	local wanted, found = itam.link(target), {}
-	for _, page in ipairs(itam.pages(tagName)) do
-		for _, value in ipairs(itam.list(page[field])) do
+function ITAM.views.linkedTo(tagName, field, target)
+	local wanted, found = ITAM.link(target), {}
+	for _, page in ipairs(ITAM.pages(tagName)) do
+		for _, value in ipairs(ITAM.list(page[field])) do
 			if value == wanted then
 				table.insert(found, page)
 				break
@@ -41,10 +41,10 @@ end
 -----------------------------------------------------------------------
 local function sortByType(pages, kind)
 	local rank = {}
-	for i, t in ipairs(itam.typesOf(kind)) do rank[t] = i end
+	for i, t in ipairs(ITAM.typesOf(kind)) do rank[t] = i end
 	table.sort(pages, function(a, b)
-		local rankA = rank[itam.list(a.type)[1]] or 999
-		local rankB = rank[itam.list(b.type)[1]] or 999
+		local rankA = rank[ITAM.list(a.type)[1]] or 999
+		local rankB = rank[ITAM.list(b.type)[1]] or 999
 		if rankA ~= rankB then return rankA < rankB end
 		return a.name < b.name
 	end)
@@ -110,7 +110,7 @@ end
 local function pageRows(pages, fields)
 	local rows = {}
 	for _, page in ipairs(pages) do
-		local row = { itam.link(page.name) }
+		local row = { ITAM.link(page.name) }
 		for i, field in ipairs(fields) do row[i + 1] = page[field] end
 		table.insert(rows, row)
 	end
@@ -160,15 +160,15 @@ local function compose(parts)
 end
 
 -----------------------------------------------------------------------
--- views.section
+-- ITAM.views.section
 --
--- views.section, views.pageRows, views.sortByName
+-- ITAM.views.section, ITAM.views.pageRows, ITAM.views.sortByName
 --
 -- Shared with the decision views in decisions.lua.
 -----------------------------------------------------------------------
-views.section = section
-views.pageRows = pageRows
-views.sortByName = sortByName
+ITAM.views.section = section
+ITAM.views.pageRows = pageRows
+ITAM.views.sortByName = sortByName
 
 -----------------------------------------------------------------------
 -- kinds
@@ -191,14 +191,14 @@ local kinds = {
 -----------------------------------------------------------------------
 
 -----------------------------------------------------------------------
--- views.network(name)
+-- ITAM.views.network(name)
 --
 -- A network and everything on it (hosts and services), arrows pointing
 -- to the network
 -----------------------------------------------------------------------
-function views.network(name)
-	local pages = views.linkedTo("component", "network", name)
-	local self = itam.page(name)
+function ITAM.views.network(name)
+	local pages = ITAM.views.linkedTo("component", "network", name)
+	local self = ITAM.page(name)
 	if self then table.insert(pages, 1, self) end
 	return mermaid.diagram(mermaid.relationGraph {
 		pages = pages, relations = { "network" }, direction = "LR",
@@ -206,18 +206,18 @@ function views.network(name)
 end
 
 -----------------------------------------------------------------------
--- views.stack(name)
+-- ITAM.views.stack(name)
 --
 -- The storage layers below `name` (along `on`) and above it; nil when
 -- it stands alone
 -----------------------------------------------------------------------
-function views.stack(name)
-	local byName = itam.byName("storage")
+function ITAM.views.stack(name)
+	local byName = ITAM.byName("storage")
 	local below, above = {}, {}
 	for upper, page in pairs(byName) do
 		below[upper] = {}
-		for _, value in ipairs(itam.list(page.on)) do
-			local lower = itam.unlink(value)
+		for _, value in ipairs(ITAM.list(page.on)) do
+			local lower = ITAM.unlink(value)
 			table.insert(below[upper], lower)
 			above[lower] = above[lower] or {}
 			table.insert(above[lower], upper)
@@ -225,10 +225,10 @@ function views.stack(name)
 	end
 	for _, uppers in pairs(above) do table.sort(uppers) end
 
-	local chart, edges = itam.flowchart(), {}
+	local chart, edges = ITAM.flowchart(), {}
 	local function box(n)
 		local page = byName[n]
-		chart.box(n, itam.short(n) .. ((page and page.type) and (" · " .. page.type) or ""), nil, "rounded")
+		chart.box(n, ITAM.short(n) .. ((page and page.type) and (" · " .. page.type) or ""), nil, "rounded")
 	end
 	local function edge(upper, lower)
 		local key = upper .. " > " .. lower
@@ -262,31 +262,31 @@ function views.stack(name)
 end
 
 -----------------------------------------------------------------------
--- views.architecture()
+-- ITAM.views.architecture()
 --
 -- Hosts grouped by site (free reservations left out), each with an
 -- arrow to the networks it is on: LANs, VPNs, internet. A LAN is drawn
 -- inside its site; the hosts of type external in the configured
 -- providers group.
 -----------------------------------------------------------------------
-function views.architecture()
-	local cfg = itam.config()
+function ITAM.views.architecture()
+	local cfg = ITAM.config()
 	local nets = {}
-	for _, page in ipairs(itam.pages("network")) do
+	for _, page in ipairs(ITAM.pages("network")) do
 		if page.type == "lan" or page.type == "tailnet" or page.type == "internet" then
 			nets[page.name] = page
 		end
 	end
 	local hosts = {}
-	for _, page in ipairs(itam.pages("host")) do
-		if page.type ~= "unused" and itam.inScope(page.name) then table.insert(hosts, page) end
+	for _, page in ipairs(ITAM.pages("host")) do
+		if page.type ~= "unused" and ITAM.inScope(page.name) then table.insert(hosts, page) end
 	end
 
-	local chart, used = itam.flowchart(), {}
+	local chart, used = ITAM.flowchart(), {}
 	for _, host in ipairs(sortByType(hosts, "host")) do
 		chart.box(host.name, nil, host.location or cfg.providers, "rounded")
-		for _, value in ipairs(itam.list(host.network)) do
-			local net = itam.unlink(value)
+		for _, value in ipairs(ITAM.list(host.network)) do
+			local net = ITAM.unlink(value)
 			if nets[net] then
 				used[net] = true
 				chart.edge(host.name, net)
@@ -313,18 +313,18 @@ end
 -----------------------------------------------------------------------
 
 -----------------------------------------------------------------------
--- views.index(tagName)
+-- ITAM.views.index(tagName)
 --
 -- Every object of one kind under the configured roots, sorted by type
 -----------------------------------------------------------------------
-function views.index(tagName)
+function ITAM.views.index(tagName)
 	local kind = kinds[tagName] or { title = tagName, fields = {} }
 	local pages = {}
-	for _, page in ipairs(itam.pages(tagName)) do
-		if itam.inScope(page.name) then table.insert(pages, page) end
+	for _, page in ipairs(ITAM.pages(tagName)) do
+		if ITAM.inScope(page.name) then table.insert(pages, page) end
 	end
 	local fields = {}
-	if itam.types[tagName] then
+	if ITAM.types[tagName] then
 		sortByType(pages, tagName)
 		table.insert(fields, "type")
 	else
@@ -346,27 +346,27 @@ end
 -- table rows
 -----------------------------------------------------------------------
 local function copyRows(storagePages, withType)
-	local pages, jobs, rows = itam.byName("component"), itam.pages("job"), {}
+	local pages, jobs, rows = ITAM.byName("component"), ITAM.pages("job"), {}
 	for _, page in ipairs(storagePages) do
-		local summary = backup.summary(page.name, backup.chain(page.name, jobs), pages)
+		local summary = ITAM.backup.summary(page.name, ITAM.backup.chain(page.name, jobs), pages)
 		if withType then
-			table.insert(rows, { itam.link(page.name), page.type, summary.copies, summary.offsite })
+			table.insert(rows, { ITAM.link(page.name), page.type, summary.copies, summary.offsite })
 		else
-			table.insert(rows, { itam.link(page.name), summary.copies, summary.offsite })
+			table.insert(rows, { ITAM.link(page.name), summary.copies, summary.offsite })
 		end
 	end
 	return rows
 end
 
 -----------------------------------------------------------------------
--- views.copies()
+-- ITAM.views.copies()
 --
 -- Every storage that has a policy, with its copies and offsite copies
 -----------------------------------------------------------------------
-function views.copies()
+function ITAM.views.copies()
 	local protected = {}
-	for _, page in ipairs(itam.pages("storage")) do
-		if page.policies and itam.inScope(page.name) then table.insert(protected, page) end
+	for _, page in ipairs(ITAM.pages("storage")) do
+		if page.policies and ITAM.inScope(page.name) then table.insert(protected, page) end
 	end
 	return widget.markdownBlock(section("Copies of each protected storage",
 		{ "storage", "copies", "offsite" }, copyRows(sortByName(protected), false)))
@@ -383,11 +383,11 @@ end
 -- connects to
 -----------------------------------------------------------------------
 local function hostView(name)
-	local members, parts = views.linkedTo("component", "partOf", name), {}
+	local members, parts = ITAM.views.linkedTo("component", "partOf", name), {}
 	for _, tagName in ipairs({ "service", "storage", "job", "network" }) do
 		local pages = {}
 		for _, page in ipairs(members) do
-			if itam.hasTag(page, tagName) then table.insert(pages, page) end
+			if ITAM.hasTag(page, tagName) then table.insert(pages, page) end
 		end
 		table.insert(parts, section(kinds[tagName].title, { "name", "type" },
 			pageRows(sortByType(pages, tagName), { "type" })))
@@ -403,11 +403,11 @@ end
 local function serviceView(name)
 	return {
 		section("Exposes", { "service", "hostname", "auth" },
-			pageRows(sortByName(views.linkedTo("service", "exposedVia", name)), { "hostname", "auth" })),
+			pageRows(sortByName(ITAM.views.linkedTo("service", "exposedVia", name)), { "hostname", "auth" })),
 		section("Logs in", { "service", "hostname" },
-			pageRows(sortByName(views.linkedTo("service", "authVia", name)), { "hostname" })),
+			pageRows(sortByName(ITAM.views.linkedTo("service", "authVia", name)), { "hostname" })),
 		section("Used by", { "name", "type" },
-			pageRows(sortByName(views.linkedTo("component", "dependsOn", name)), { "type" })),
+			pageRows(sortByName(ITAM.views.linkedTo("component", "dependsOn", name)), { "type" })),
 	}
 end
 
@@ -417,20 +417,20 @@ end
 -- Storage: its stack, and where its data is copied to
 -----------------------------------------------------------------------
 local function storageView(name)
-	local pages = itam.byName("component")
-	local chain = backup.chain(name)
-	local summary = backup.summary(name, chain, pages)
+	local pages = ITAM.byName("component")
+	local chain = ITAM.backup.chain(name)
+	local summary = ITAM.backup.summary(name, chain, pages)
 	local rows = {}
 	for _, step in ipairs(chain) do
-		table.insert(rows, { step.level, itam.link(step.from), itam.link(step.job),
-			step.tool, step.schedule, itam.link(step.to) })
+		table.insert(rows, { step.level, ITAM.link(step.from), ITAM.link(step.job),
+			step.tool, step.schedule, ITAM.link(step.to) })
 	end
 	local parts = {}
-	addDiagram(parts, "Stack", views.stack(name))
+	addDiagram(parts, "Stack", ITAM.views.stack(name))
 	table.insert(parts, section(
 		"Backup chain: " .. summary.copies .. " copies, " .. summary.offsite .. " offsite",
 		{ "level", "from", "job", "tool", "schedule", "to" }, rows))
-	addDiagram(parts, "Backup diagram", (#chain > 0) and backup.diagram(name, chain, pages) or nil)
+	addDiagram(parts, "Backup diagram", (#chain > 0) and ITAM.backup.diagram(name, chain, pages) or nil)
 	return parts
 end
 
@@ -451,31 +451,31 @@ end
 -- containers)
 -----------------------------------------------------------------------
 local function networkView(name, page)
-	local parts, members, onNetwork = {}, views.linkedTo("component", "network", name), {}
-	addDiagram(parts, "Diagram", views.network(name))
+	local parts, members, onNetwork = {}, ITAM.views.linkedTo("component", "network", name), {}
+	addDiagram(parts, "Diagram", ITAM.views.network(name))
 	local rows = {}
 	for _, kind in ipairs({ "host", "service" }) do
 		local pages = {}
 		for _, member in ipairs(members) do
 			onNetwork[member.name] = true
-			if itam.hasTag(member, kind) then table.insert(pages, member) end
+			if ITAM.hasTag(member, kind) then table.insert(pages, member) end
 		end
 		for _, member in ipairs(sortByType(pages, kind)) do
-			table.insert(rows, { itam.link(member.name), kind, member.type })
+			table.insert(rows, { ITAM.link(member.name), kind, member.type })
 		end
 	end
 	table.insert(parts, section("Members", { "name", "kind", "type" }, rows))
 
 	if page.type == "lan" then
 		local addresses = {}
-		for _, other in ipairs(itam.pages("component")) do
+		for _, other in ipairs(ITAM.pages("component")) do
 			local onIt = onNetwork[other.name]
-			for _, host in ipairs(itam.list(other.partOf)) do
-				if onNetwork[itam.unlink(host)] then onIt = true end
+			for _, host in ipairs(ITAM.list(other.partOf)) do
+				if onNetwork[ITAM.unlink(host)] then onIt = true end
 			end
 			if other.lanIp and onIt then
-				for _, ip in ipairs(itam.list(other.lanIp)) do
-					table.insert(addresses, { ip, itam.link(other.name), other.type, other.status })
+				for _, ip in ipairs(ITAM.list(other.lanIp)) do
+					table.insert(addresses, { ip, ITAM.link(other.name), other.type, other.status })
 				end
 			end
 		end
@@ -494,9 +494,9 @@ end
 local function policyView(name)
 	return {
 		section("Storage under this policy", { "storage", "type", "copies", "offsite" },
-			copyRows(sortByType(views.linkedTo("storage", "policies", name), "storage"), true)),
+			copyRows(sortByType(ITAM.views.linkedTo("storage", "policies", name), "storage"), true)),
 		section("Jobs implementing it", { "job", "type", "schedule" },
-			pageRows(sortByType(views.linkedTo("job", "implements", name), "job"), { "type", "schedule" })),
+			pageRows(sortByType(ITAM.views.linkedTo("job", "implements", name), "job"), { "type", "schedule" })),
 	}
 end
 
@@ -507,8 +507,8 @@ end
 -----------------------------------------------------------------------
 local function jobView(name, page)
 	local rows = {}
-	for _, copy in ipairs(itam.copies(page)) do
-		table.insert(rows, { itam.link(copy.from), itam.link(copy.to) })
+	for _, copy in ipairs(ITAM.copies(page)) do
+		table.insert(rows, { ITAM.link(copy.from), ITAM.link(copy.to) })
 	end
 	return { section("Copies", { "from", "to" }, rows) }
 end
@@ -521,7 +521,7 @@ end
 local function decisionView(name)
 	return {
 		section("Governs", { "name", "type" },
-			pageRows(sortByName(views.linkedTo("component", "decision", name)), { "type" })),
+			pageRows(sortByName(ITAM.views.linkedTo("component", "decision", name)), { "type" })),
 	}
 end
 
@@ -541,15 +541,15 @@ local viewsByTag = {
 }
 
 -----------------------------------------------------------------------
--- views.page(name)
+-- ITAM.views.page(name)
 --
 -- The view of any object page; the same call on every page
 -----------------------------------------------------------------------
-function views.page(name)
-	local page = itam.page(name)
+function ITAM.views.page(name)
+	local page = ITAM.page(name)
 	if not page then return widget.markdownBlock("*Not indexed yet.*") end
 	for _, entry in ipairs(viewsByTag) do
-		if itam.hasTag(page, entry.tag) then return compose(entry.view(name, page)) end
+		if ITAM.hasTag(page, entry.tag) then return compose(entry.view(name, page)) end
 	end
 	return widget.markdownBlock("*No view for this kind of page.*")
 end

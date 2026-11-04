@@ -22,7 +22,7 @@ shown. The library writes nothing but the pages you create from its templates.
 * *Schemas* one `tag.define` per kind checks the fields and the allowed
   values, and decorates the page with an icon for its kind (a status dot for
   a decision). A broken page shows a lint warning in the editor.
-* *Views* every object page ends with `${views.page(_CTX.currentPage.name)}`,
+* *Views* every object page ends with `${ITAM.views.page(_CTX.currentPage.name)}`,
   which looks at the page's tags and shows the view for its kind, so a page
   that changes kind needs no edit.
 * *Backups as storage, policies and jobs* copy jobs (`backup`, `snapshot`,
@@ -30,17 +30,17 @@ shown. The library writes nothing but the pages you create from its templates.
   the policy they fulfil. The chain is never written down: the storage view
   follows source → job → target and counts the copies, the offsite copies
   included.
-* *Index pages and diagrams* `views.index(tag)` lists every object of one
-  kind, `views.copies()` the copies of every protected storage,
-  `views.architecture()` draws the hosts by site with the networks they are
-  on, `views.decisions {…}` draws the decisions as a graph.
+* *Index pages and diagrams* `ITAM.views.index(tag)` lists every object of one
+  kind, `ITAM.views.copies()` the copies of every protected storage,
+  `ITAM.views.architecture()` draws the hosts by site with the networks they are
+  on, `ITAM.views.decisions {…}` draws the decisions as a graph.
 * *Decision records* the tag `dr` after the ADR pattern: `status`
   (`proposed` → `provisional` → `accepted`, then `superseded` or `deprecated`;
   `rejected` is a dead end), `area`, `deciders`, `owner`, `lastReviewed`,
   `supersedes`, `dependsOn`, `related`. Two views list what needs attention:
-  `views.drDueForReview()` and `views.drProvisional()`.
-* *Page templates* one command per kind (`Host: New`, `Service: New`,
-  `Storage: New`, `Network: New`, `Policy: New`, `Job: New`, `Decision: New`)
+  `ITAM.views.drDueForReview()` and `ITAM.views.drProvisional()`.
+* *Page templates* one command per kind (`ITAM: New Host`, `ITAM: New Service`,
+  `ITAM: New Storage`, `ITAM: New Network`, `ITAM: New Policy`, `ITAM: New Job`, `ITAM: New Decision`)
   creates a page with the right fields, the allowed values as comments, and
   the view call.
 
@@ -50,16 +50,16 @@ shown. The library writes nothing but the pages you create from its templates.
   `Computer/Service/`, `Computer/Storage/`, `Computer/Network/`,
   `Computer/Policy/`, `Computer/Job/`, `Computer/Decision/`. The page name is
   the object's name; the host is never part of the path, only of `partOf`.
-* Next to each folder, an index page with `${views.index("host")}` and so on;
-  the policy index adds `${views.copies()}`; the entry page `Computer` shows
-  `${views.architecture()}`.
-* Create new pages with the templates (`Host: New`, …), fill in the
+* Next to each folder, an index page with `${ITAM.views.index("host")}` and so on;
+  the policy index adds `${ITAM.views.copies()}`; the entry page `Computer` shows
+  `${ITAM.views.architecture()}`.
+* Create new pages with the templates (`ITAM: New Host`, …), fill in the
   frontmatter, keep the prose for what no field can hold: why, how, caveats.
 * Every storage has at least one policy, the layers below the data included;
   a *no backup* policy says that nothing protects it.
-* Record decisions with `Decision: New`; an index page with
-  `${views.decisions { statuses = { "accepted", "provisional" } }}`,
-  `${views.drDueForReview()}` and `${views.drProvisional()}` shows where they
+* Record decisions with `ITAM: New Decision`; an index page with
+  `${ITAM.views.decisions { statuses = { "accepted", "provisional" } }}`,
+  `${ITAM.views.drDueForReview()}` and `${ITAM.views.drProvisional()}` shows where they
   stand.
 
 ## Configuration
@@ -112,18 +112,18 @@ run `System: Reload`, then `Space: Reindex`.
 
 | Call | Where |
 | --- | --- |
-| `${views.page(_CTX.currentPage.name)}` | the last line of every object page: the view for its kind |
-| `${views.index("host")}` | the index page next to each kind's folder (`host`, `service`, `storage`, `network`, `policy`, `job`, `dr`) |
-| `${views.copies()}` | the policy index: copies and offsite copies of every protected storage |
-| `${views.architecture()}` | the entry page: hosts by site, with their networks |
-| `${views.decisions { area = "…", statuses = { "…" }, relations = { "dependsOn", "related", "supersedes" } }}` | a decision index: the decisions as a graph; every option is optional |
-| `${views.drDueForReview(180)}` | a decision index: active decisions not reviewed for that many days (default: `reviewDays`) |
-| `${views.drProvisional()}` | a decision index: the provisional decisions, longest unchanged first |
+| `${ITAM.views.page(_CTX.currentPage.name)}` | the last line of every object page: the view for its kind |
+| `${ITAM.views.index("host")}` | the index page next to each kind's folder (`host`, `service`, `storage`, `network`, `policy`, `job`, `dr`) |
+| `${ITAM.views.copies()}` | the policy index: copies and offsite copies of every protected storage |
+| `${ITAM.views.architecture()}` | the entry page: hosts by site, with their networks |
+| `${ITAM.views.decisions { area = "…", statuses = { "…" }, relations = { "dependsOn", "related", "supersedes" } }}` | a decision index: the decisions as a graph; every option is optional |
+| `${ITAM.views.drDueForReview(180)}` | a decision index: active decisions not reviewed for that many days (default: `reviewDays`) |
+| `${ITAM.views.drProvisional()}` | a decision index: the provisional decisions, longest unchanged first |
 
-A page calls `views.*` only. The globals `itam` (configuration, lists,
-helpers, schemas) and `backup` (the chain) are the library's own; a space
-that restricts what pages may call (an allowlist) needs `views.*` and nothing
-else.
+A page calls `ITAM.views.*` only. The rest of the `ITAM` namespace
+(configuration, lists, helpers, schemas) and `ITAM.backup` (the chain) are the
+library's own; a space that restricts what pages may call (an allowlist) needs
+`ITAM.views.*` and nothing else.
 
 ### the views
 
@@ -159,25 +159,25 @@ everything into one block.
 
 ### building blocks
 
-Usable on their own in Space Lua: `views.linkedTo(tag, field, page)` (pages
-whose `field` points to `page`), `views.network(name)` (a network and
-everything on it), `views.stack(name)` (the storage layers around a storage;
-`nil` when it stands alone), `backup.chain(name)`, `backup.summary(name)`,
-`backup.diagram(name)`, and the helpers in `itam` (`itam.list`, `itam.link`,
-`itam.unlink`, `itam.short`, `itam.pages(tag)`, `itam.page(name)`,
-`itam.byName(tag)`, `itam.copies(job)`, `itam.flowchart()`).
+Usable on their own in Space Lua: `ITAM.views.linkedTo(tag, field, page)` (pages
+whose `field` points to `page`), `ITAM.views.network(name)` (a network and
+everything on it), `ITAM.views.stack(name)` (the storage layers around a storage;
+`nil` when it stands alone), `ITAM.backup.chain(name)`, `ITAM.backup.summary(name)`,
+`ITAM.backup.diagram(name)`, and the helpers in `ITAM` (`ITAM.list`, `ITAM.link`,
+`ITAM.unlink`, `ITAM.short`, `ITAM.pages(tag)`, `ITAM.page(name)`,
+`ITAM.byName(tag)`, `ITAM.copies(job)`, `ITAM.flowchart()`).
 
 ### commands
 
 Each page template adds one command that creates a page of its kind:
 
-* `Host: New`
-* `Service: New`
-* `Storage: New`
-* `Network: New`
-* `Policy: New`
-* `Job: New`
-* `Decision: New`
+* `ITAM: New Host`
+* `ITAM: New Service`
+* `ITAM: New Storage`
+* `ITAM: New Network`
+* `ITAM: New Policy`
+* `ITAM: New Job`
+* `ITAM: New Decision`
 
 ### page templates
 

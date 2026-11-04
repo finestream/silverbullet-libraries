@@ -1,3 +1,3 @@
 Index of the Jobs of the test set-up.
 
-${views.index("job")}
+${ITAM.views.index("job")}

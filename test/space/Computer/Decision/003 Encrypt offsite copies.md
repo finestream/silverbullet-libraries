@@ -18,4 +18,4 @@ related:
 ## Decision
 A copy that leaves the house is encrypted before it leaves.
 
-${views.page(_CTX.currentPage.name)}
+${ITAM.views.page(_CTX.currentPage.name)}

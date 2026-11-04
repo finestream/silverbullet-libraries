@@ -9,16 +9,16 @@
 -----------------------------------------------------------------------
 
 -----------------------------------------------------------------------
--- itam.drDots
+-- ITAM.drDots
 --
 -- The status dot, used as page decoration and in the graph
 -----------------------------------------------------------------------
-itam.drDots = {
+ITAM.drDots = {
 	proposed = "🟡", provisional = "🔵", accepted = "🟢",
 	superseded = "⚪", deprecated = "🟠", rejected = "🔴",
 }
-itam.drStatuses = { "proposed", "provisional", "accepted", "superseded", "deprecated", "rejected" }
-itam.drActive = { proposed = true, provisional = true, accepted = true }
+ITAM.drStatuses = { "proposed", "provisional", "accepted", "superseded", "deprecated", "rejected" }
+ITAM.drActive = { proposed = true, provisional = true, accepted = true }
 
 -----------------------------------------------------------------------
 -- Tag dr
@@ -27,7 +27,7 @@ itam.drActive = { proposed = true, provisional = true, accepted = true }
 -- set when the library loads; `validate` checks the area again when a
 -- page is indexed.
 -----------------------------------------------------------------------
-local drConfig = itam.config().dr
+local drConfig = ITAM.config().dr
 local drSpec = {
 	name = "dr",
 	schema = {
@@ -35,7 +35,7 @@ local drSpec = {
 		properties = {
 			status = {
 				type = "string",
-				enum = itam.drStatuses,
+				enum = ITAM.drStatuses,
 				description = "Lifecycle state: proposed -> provisional -> accepted, then superseded or deprecated; rejected is a dead end."
 			},
 			date = {
@@ -60,7 +60,7 @@ local drSpec = {
 			},
 			area = {
 				type = "string",
-				description = "Which part of the space the decision belongs to; the allowed values are configured (itam.dr.areas)."
+				description = "Which part of the space the decision belongs to; the allowed values are configured (dr.areas under the `itam` key of CONFIG)."
 			},
 			supersedes = {
 				anyOf = { schema.array("string"), schema.null() },
@@ -78,13 +78,13 @@ local drSpec = {
 		required = { "status" },
 	},
 	validate = function(o)
-		local areas = itam.config().dr.areas
-		if o.area ~= nil and not itam.oneOf(o.area, areas) then
+		local areas = ITAM.config().dr.areas
+		if o.area ~= nil and not ITAM.oneOf(o.area, areas) then
 			return "area must be one of " .. table.concat(areas, ", ")
 		end
 	end,
 	transform = function(o)
-		o.pageDecoration = { prefix = (itam.drDots[o.status] or "📐") .. " " }
+		o.pageDecoration = { prefix = (ITAM.drDots[o.status] or "📐") .. " " }
 		return o
 	end,
 }
@@ -93,7 +93,7 @@ if drConfig.tagPage then drSpec.tagPage = drConfig.tagPage end
 tag.define(drSpec)
 
 -----------------------------------------------------------------------
--- views.decisions(opts)
+-- ITAM.views.decisions(opts)
 --
 -- Decision records as a graph: nodes carry the status dot and the id.
 -- opts.area (optional) keeps one area; opts.statuses (optional list)
@@ -103,7 +103,7 @@ tag.define(drSpec)
 -- selection are not drawn. opts.direction (default "TD") is the
 -- Mermaid direction.
 -----------------------------------------------------------------------
-function views.decisions(opts)
+function ITAM.views.decisions(opts)
 	opts = opts or {}
 	local relations = opts.relations or { "dependsOn" }
 	local keep = nil
@@ -112,7 +112,7 @@ function views.decisions(opts)
 		for _, s in ipairs(opts.statuses) do keep[s] = true end
 	end
 	local pages, selected = {}, {}
-	for _, page in ipairs(itam.pages("dr")) do
+	for _, page in ipairs(ITAM.pages("dr")) do
 		if (not opts.area or page.area == opts.area) and (not keep or keep[page.status]) then
 			table.insert(pages, page)
 			selected[page.name] = true
@@ -120,17 +120,17 @@ function views.decisions(opts)
 	end
 	table.sort(pages, function(a, b) return (a.id or 0) < (b.id or 0) end)
 
-	local chart = itam.flowchart()
+	local chart = ITAM.flowchart()
 	for _, page in ipairs(pages) do
-		local dot = itam.drDots[page.status] or "📐"
-		local label = dot .. " " .. itam.short(page.name)
+		local dot = ITAM.drDots[page.status] or "📐"
+		local label = dot .. " " .. ITAM.short(page.name)
 		if page.id then label = label .. " (" .. page.id .. ")" end
 		chart.box(page.name, label, nil, "rounded")
 	end
 	for _, page in ipairs(pages) do
 		for _, rel in ipairs(relations) do
-			for _, value in ipairs(itam.list(page[rel])) do
-				local target = itam.unlink(value)
+			for _, value in ipairs(ITAM.list(page[rel])) do
+				local target = ITAM.unlink(value)
 				if selected[target] then
 					chart.edge(page.name, target, (rel ~= "dependsOn") and rel or nil)
 				end
@@ -155,19 +155,19 @@ local function dayTime(text)
 end
 
 -----------------------------------------------------------------------
--- views.drDueForReview(days)
+-- ITAM.views.drDueForReview(days)
 --
 -- The active decisions (proposed, provisional, accepted) whose
 -- `lastReviewed` is missing or older than `days` (default: the
 -- configured reviewDays), oldest first
 -----------------------------------------------------------------------
-function views.drDueForReview(days)
-	days = days or itam.config().dr.reviewDays
+function ITAM.views.drDueForReview(days)
+	days = days or ITAM.config().dr.reviewDays
 	local limit = os.time() - days * 86400
 	local due = {}
-	for _, page in ipairs(itam.pages("dr")) do
+	for _, page in ipairs(ITAM.pages("dr")) do
 		local reviewed = dayTime(page.lastReviewed)
-		if itam.drActive[page.status] and (reviewed == nil or reviewed < limit) then
+		if ITAM.drActive[page.status] and (reviewed == nil or reviewed < limit) then
 			table.insert(due, page)
 		end
 	end
@@ -176,20 +176,20 @@ function views.drDueForReview(days)
 		if ra ~= rb then return ra < rb end
 		return (a.id or 0) < (b.id or 0)
 	end)
-	return widget.markdownBlock(views.section("Due for review (older than " .. days .. " days)",
+	return widget.markdownBlock(ITAM.views.section("Due for review (older than " .. days .. " days)",
 		{ "decision", "id", "owner", "last reviewed" },
-		views.pageRows(due, { "id", "owner", "lastReviewed" })))
+		ITAM.views.pageRows(due, { "id", "owner", "lastReviewed" })))
 end
 
 -----------------------------------------------------------------------
--- views.drProvisional()
+-- ITAM.views.drProvisional()
 --
 -- The provisional decisions with the days since their last change,
 -- longest unchanged first
 -----------------------------------------------------------------------
-function views.drProvisional()
+function ITAM.views.drProvisional()
 	local rows, pages = {}, {}
-	for _, page in ipairs(itam.pages("dr")) do
+	for _, page in ipairs(ITAM.pages("dr")) do
 		if page.status == "provisional" then table.insert(pages, page) end
 	end
 	table.sort(pages, function(a, b) return (a.lastModified or "") < (b.lastModified or "") end)
@@ -197,8 +197,8 @@ function views.drProvisional()
 	for _, page in ipairs(pages) do
 		local changed = dayTime(page.lastModified)
 		local days = changed and math.floor((now - changed) / 86400) or ""
-		table.insert(rows, { page.id, itam.link(page.name), days, page.lastReviewed })
+		table.insert(rows, { page.id, ITAM.link(page.name), days, page.lastReviewed })
 	end
-	return widget.markdownBlock(views.section("Provisional",
+	return widget.markdownBlock(ITAM.views.section("Provisional",
 		{ "id", "decision", "days since last change", "last reviewed" }, rows))
 end

@@ -1,3 +1,3 @@
 Index of the Hosts of the test set-up.
 
-${views.index("host")}
+${ITAM.views.index("host")}
