@@ -167,25 +167,36 @@ everything on it), `views.stack(name)` (the storage layers around a storage;
 `itam.unlink`, `itam.short`, `itam.pages(tag)`, `itam.page(name)`,
 `itam.byName(tag)`, `itam.copies(job)`, `itam.flowchart()`).
 
+### commands
+
+Each page template adds one command that creates a page of its kind:
+
+* `Host: New`
+* `Service: New`
+* `Storage: New`
+* `Network: New`
+* `Policy: New`
+* `Job: New`
+* `Decision: New`
+
 ### page templates
 
 The templates are installed next to this page, under `Templates/`, and read
 `pagePrefix`, `sites`, `dr.areas`, `dr.deciders`, `dr.owner` and the type
 lists from the configuration, so a new page proposes the right folder and
-lists the allowed values as comments. They need the Mermaid library for the
-diagrams: install `Mermaid` from the SilverBulletMD repository.
+lists the allowed values as comments.
 
 ### notes
 
 * The diagrams use `mermaid.diagram` and `mermaid.relationGraph` of the
-  Mermaid library (SilverBulletMD repository); without it the views with a
-  diagram fail.
+  Mermaid library: install `Mermaid` from the SilverBulletMD repository.
+  Without it the views with a diagram fail.
 * `relationGraph` shows at most 60 nodes by default; the backup, stack,
   architecture and decision diagrams build their own flowcharts and have no
   such cap.
 * A replica (one storage kept in sync on several hosts) lists its hosts in
   `partOf` and the layer under each copy in `on`; the summary counts one copy
   per host. The same software on several hosts is one service.
-* Not tested with SilverBullet Desktop.
+* Not tested with Silverbullet+
 
 ## Code
