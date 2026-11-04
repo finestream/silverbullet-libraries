@@ -17,3 +17,10 @@ website: https://github.com/finestream/silverbullet-libraries/blob/main/releases
 description: "Paginated thumbnail galleries for the images in your space (see releases/ for published builds)"
 ---
 ```
+```#meta/library/remote
+name: "IT Asset Management"
+uri: https://github.com/finestream/silverbullet-libraries/blob/main/releases/IT%20Asset%20Management.md
+website: https://github.com/finestream/silverbullet-libraries/blob/main/releases/IT%20Asset%20Management.md
+description: "Document hosts, services, networks, storage, policies, jobs and decisions as pages: tag schemas, generated views and diagrams, page templates (see releases/ for published builds)"
+---
+```
