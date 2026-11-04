@@ -232,7 +232,7 @@ release-%: %
 	patch=$$(cat src/$*/$(RELEASE_PATCH_FILE) 2>/dev/null || echo 0); \
 	ver=$$major.$$minor.$$patch; \
 	if [ -f "$(RELEASE_DIR)/$$page.VERSION" ] && \
-		[ "$$ver" = "$$(cat $(RELEASE_DIR)/$$page.VERSION)" ]; then \
+		[ "$$ver" = "$$(cat "$(RELEASE_DIR)/$$page.VERSION")" ]; then \
 		echo "$$page $$ver is already released, skipping"; \
 		echo "  bump it first with 'make bump-fix-$*' or 'make bump-feature-$*'"; \
 		exit 0; \
