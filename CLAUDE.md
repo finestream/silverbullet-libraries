@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this repo is
 
-A collection of [SilverBullet](https://silverbullet.md) libraries written in Space-Lua. A "library" here is **not** a plug/JS bundle: it is a single markdown page that a user installs into their SilverBullet space via the Library Manager, containing documentation plus one ` ```space-lua ` code block. Two libraries so far: `kanboard` (SilverBullet ↔ Kanboard task sync) and `imagegallery` (paginated thumbnail grids of the images in a space).
+A collection of [SilverBullet](https://silverbullet.md) libraries written in Space-Lua. A "library" here is **not** a plug/JS bundle: it is a single markdown page that a user installs into their SilverBullet space via the Library Manager, containing documentation plus one ` ```space-lua ` code block. Three libraries so far: `kanboard` (SilverBullet ↔ Kanboard task sync), `imagegallery` (paginated thumbnail grids of the images in a space) and `itam` (IT asset management: tag schemas, views and page templates for documenting a set-up as pages).
 
 Users install from `REPO.md` (the repository index, consumed as a raw GitHub URL), which lists one `#meta/library/remote` block per library pointing at `releases/<Page>.md`.
 
@@ -50,7 +50,7 @@ Two things do give a real feedback loop, though:
 
 ### Adding a library
 
-Create `src/<lib>/` with `frontmatter.md`, a docs page, one or more `.lua` files, and the three `RELEASE_*` files (start at `0.1.0`); then in the Makefile add `<lib>` to `LIBRARIES` and define `<lib>_PAGE`, `<lib>_DOCS` and `<lib>_LUA` (the `_DOCS`/`_LUA` order *is* the concatenation order). Finally add the library to `REPO.md` and `README.md`. Everything else — build, testspace copy, release, bump, version — is generic.
+Create `src/<lib>/` with `frontmatter.md`, a docs page, one or more `.lua` files, and the three `RELEASE_*` files (start at `0.1.0`); then in the Makefile add `<lib>` to `LIBRARIES` and define `<lib>_PAGE`, `<lib>_DOCS` and `<lib>_LUA` (the `_DOCS`/`_LUA` order *is* the concatenation order). A library that ships extra pages or files (page templates, plugs) lists them in `<lib>_FILES` (paths relative to `src/<lib>/`, no spaces, since make splits on them) *and* under `files:` in its frontmatter: the build copies them next to the page, and SilverBullet installs them next to the library page in the space (`Library/Finestream/<path>`). Finally add the library to `REPO.md` and `README.md`. Everything else — build, testspace copy, release, bump, version — is generic.
 
 ### Generated files — do not edit
 

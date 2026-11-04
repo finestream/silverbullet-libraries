@@ -20,6 +20,10 @@ IG_COLS ?= 3
 IG_ROWS ?= 2
 IG_WIDTH ?= 200
 IG_HEIGHT ?= 150
+ITAM_ROOT ?= Computer/
+ITAM_SITES ?= Home, Office
+ITAM_AREAS ?= infrastructure, knowledge
+ITAM_DECIDERS ?= @me
 # OPEN_COMMAND can be overridden on Linux with xdg-open
 OPEN_COMMAND ?= open
 TEST_SPACE_DIR ?= test/space
@@ -36,12 +40,15 @@ TEST_TEST_DIR ?= test/test
 #   <lib>_DOCS  documentation fragments, concatenated in this order
 #   <lib>_LUA   Lua fragments, concatenated in this order into one
 #               space-lua block
+#   <lib>_FILES extra files installed next to the page (optional): paths
+#               relative to src/<lib>/, without spaces, listed under `files`
+#               in the library's frontmatter
 #
 # and keep its version in src/<lib>/RELEASE_MAJOR, RELEASE_MINOR and
 # RELEASE_PATCH.
 ###############################################################################
 
-LIBRARIES := kanboard imagegallery
+LIBRARIES := kanboard imagegallery itam
 
 kanboard_PAGE := Kanboard
 kanboard_DOCS := kanboard.md
@@ -50,6 +57,14 @@ kanboard_LUA := library.lua kanboard.lua
 imagegallery_PAGE := ImageGallery
 imagegallery_DOCS := imagegallery.md
 imagegallery_LUA := imagegallery.lua
+
+# decisions.lua uses the table helpers that views.lua exports as views.*, so
+# the order is itam, backup, views, decisions.
+itam_PAGE := IT Asset Management
+itam_DOCS := itam.md
+itam_LUA := itam.lua backup.lua views.lua decisions.lua
+itam_FILES := Templates/Decision.md Templates/Host.md Templates/Job.md \
+	Templates/Network.md Templates/Policy.md Templates/Service.md Templates/Storage.md
 
 # Release/versioning
 RELEASE_MAJOR_FILE ?= RELEASE_MAJOR
@@ -86,6 +101,8 @@ $(LIBRARIES):
 	@cat $(addprefix src/$@/,$($@_LUA)) >> "$(TEST_BUILD_DIR)/$($@_PAGE).md"
 	@echo "" >> "$(TEST_BUILD_DIR)/$($@_PAGE).md"
 	@echo '```' >> "$(TEST_BUILD_DIR)/$($@_PAGE).md"
+	@$(foreach f,$($@_FILES),mkdir -p "$(TEST_BUILD_DIR)/$(dir $(f))" && \
+		cp "src/$@/$(f)" "$(TEST_BUILD_DIR)/$(f)";)
 	@echo "Done."
 
 ###############################################################################
@@ -113,6 +130,9 @@ testspace: all
 	fi
 	@$(foreach lib,$(LIBRARIES),cp "$(TEST_BUILD_DIR)/$($(lib)_PAGE).md" \
 		"$(TEST_TEST_DIR)/Library/Finestream/$($(lib)_PAGE).md";)
+	@$(foreach lib,$(LIBRARIES),$(foreach f,$($(lib)_FILES),\
+		mkdir -p "$(TEST_TEST_DIR)/Library/Finestream/$(dir $(f))" && \
+		cp "$(TEST_BUILD_DIR)/$(f)" "$(TEST_TEST_DIR)/Library/Finestream/$(f)";))
 	@printf '%s\n' '```space-lua' > "$(TEST_TEST_DIR)/CONFIG.md"
 	@printf '%s\n' 'config.set {' >> "$(TEST_TEST_DIR)/CONFIG.md"
 	@printf '%s\n' '  kanboard = {' >> "$(TEST_TEST_DIR)/CONFIG.md"
@@ -159,6 +179,28 @@ testspace: all
 	@printf '      height = %s, -- thumbnail bounding box height in pixels\n' \
 		"$(IG_HEIGHT)" \
 		>> "$(TEST_TEST_DIR)/CONFIG.md"
+	@printf '%s\n' '  },' >> "$(TEST_TEST_DIR)/CONFIG.md"
+	@printf '%s\n' '  itam = {' >> "$(TEST_TEST_DIR)/CONFIG.md"
+	@printf '      roots = { "%s" }, -- page prefixes the views consider\n' \
+		"$(ITAM_ROOT)" \
+		>> "$(TEST_TEST_DIR)/CONFIG.md"
+	@printf '      sites = { %s }, -- allowed location values\n' \
+		"$$(printf '%s' '$(ITAM_SITES)' | sed 's/ *, */", "/g; s/^/"/; s/$$/"/')" \
+		>> "$(TEST_TEST_DIR)/CONFIG.md"
+	@printf '%s\n' '      dr = {' >> "$(TEST_TEST_DIR)/CONFIG.md"
+	@printf '          tagPage = "%sDecision", -- the page the dr tag opens\n' \
+		"$(ITAM_ROOT)" \
+		>> "$(TEST_TEST_DIR)/CONFIG.md"
+	@printf '          areas = { %s }, -- allowed area values\n' \
+		"$$(printf '%s' '$(ITAM_AREAS)' | sed 's/ *, */", "/g; s/^/"/; s/$$/"/')" \
+		>> "$(TEST_TEST_DIR)/CONFIG.md"
+	@printf '          deciders = "%s", -- deciders of a new decision\n' \
+		"$(ITAM_DECIDERS)" \
+		>> "$(TEST_TEST_DIR)/CONFIG.md"
+	@printf '          owner = "%s", -- owner of a new decision\n' \
+		"$(ITAM_DECIDERS)" \
+		>> "$(TEST_TEST_DIR)/CONFIG.md"
+	@printf '%s\n' '      },' >> "$(TEST_TEST_DIR)/CONFIG.md"
 	@printf '%s\n' '  }' >> "$(TEST_TEST_DIR)/CONFIG.md"
 	@printf '%s\n' '}' >> "$(TEST_TEST_DIR)/CONFIG.md"
 	@printf '%s\n' '```' >> "$(TEST_TEST_DIR)/CONFIG.md"
@@ -197,6 +239,10 @@ release-%: %
 	fi; \
 	mkdir -p "$(RELEASE_DIR)"; \
 	cp "$(TEST_BUILD_DIR)/$$page.md" "$(RELEASE_DIR)/$$page.md"; \
+	for f in $($*_FILES); do \
+		mkdir -p "$(RELEASE_DIR)/$$(dirname "$$f")"; \
+		cp "$(TEST_BUILD_DIR)/$$f" "$(RELEASE_DIR)/$$f"; \
+	done; \
 	echo "$$ver" > "$(RELEASE_DIR)/$$page.VERSION"; \
 	git tag -a "$*-v$$ver" -m "$$page release $$ver" || \
 		echo "git tag failed (maybe already exists)"; \
@@ -272,6 +318,10 @@ help:
 	@printf "  IG_ROWS\tImageGallery default rows used in CONFIG.md\n"
 	@printf "  IG_WIDTH\tImageGallery default thumbnail width in CONFIG.md\n"
 	@printf "  IG_HEIGHT\tImageGallery default thumbnail height in CONFIG.md\n"
+	@printf "  ITAM_ROOT\tIT Asset Management page prefix used in CONFIG.md (default: Computer/)\n"
+	@printf "  ITAM_SITES\tIT Asset Management location values, comma separated\n"
+	@printf "  ITAM_AREAS\tIT Asset Management decision areas, comma separated\n"
+	@printf "  ITAM_DECIDERS\tIT Asset Management deciders and owner of a new decision\n"
 	@printf "  OPEN_COMMAND\tCommand to open the default browser (default: open)\n"
 	@printf "  SB_IMAGE\tDocker image to run for SilverBullet\n"
 	@printf "  SB_CONTAINER\tName for the SilverBullet Docker container\n"
