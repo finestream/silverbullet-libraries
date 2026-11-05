@@ -1,3 +1,4 @@
+-- priority: -10
 -----------------------------------------------------------------------
 -- Package ITAM
 --
@@ -7,6 +8,12 @@
 -- One global, `ITAM` (configuration, lists, helpers, schemas), with
 -- `ITAM.backup` (the chain) and `ITAM.views` (what pages call).
 -- Everything else is local.
+--
+-- The priority on the first line loads this script after every script
+-- without a priority, so the configuration is complete whatever page it
+-- is on when the definitions and schemas below are built from it. All
+-- fragments of the library are one script, so their order is the build
+-- order.
 -----------------------------------------------------------------------
 ITAM = {}
 
@@ -29,7 +36,7 @@ ITAM.defaults = {
 	-- The group of the hosts of type external in the architecture diagram
 	providers = "Providers",
 	-- Per kind (host, service, storage, network, policy, job, auth), a list of
-	-- values that replaces the default list of ITAM.types
+	-- definitions that replaces the default list of ITAM.types
 	types = {},
 	-- Decision records
 	dr = {
@@ -89,6 +96,11 @@ end
 -- Default `type` values per kind, and the `auth` values of a service;
 -- the order is also the sort order in the views. A space replaces a
 -- list with `types.<kind>`.
+--
+-- An entry is a name, or a table with a name and properties. The
+-- properties of a job type: `copy` (counts as a copy from source to
+-- target), `inPlace` (the copy stays on the source, so there is no
+-- target) and `policy` (the policy type that governs it).
 -----------------------------------------------------------------------
 ITAM.types = {
 	host    = { "server", "nas", "mac", "pc", "pi", "mobile", "appliance", "external", "unused" },
@@ -97,24 +109,95 @@ ITAM.types = {
 		"lvm-lv", "volume", "share", "folder", "repository", "cloud" },
 	network = { "lan", "tailnet", "internet", "docker-bridge", "docker-macvlan" },
 	policy  = { "backup", "snapshot", "retention" },
-	job     = { "backup", "snapshot", "sync", "update", "test", "scrub", "script" },
+	job     = {
+		{ name = "backup", copy = true, policy = "backup" },
+		{ name = "snapshot", copy = true, inPlace = true, policy = "snapshot" },
+		{ name = "sync", copy = true, policy = "backup" },
+		"update", "test", "scrub", "script",
+	},
 	auth    = { "keycloak", "forward-auth", "own", "none", "n/a" },
 }
 -----------------------------------------------------------------------
--- ITAM.copyJobs
+-- definitionsOf(kind, entries)
 --
--- Job types that copy from source to target
+-- The entries of a kind as definitions, in their order. An entry named
+-- like a default starts from that default's properties, so a space
+-- that lists "backup" as a name keeps what a backup is. A table without
+-- a name defines nothing.
 -----------------------------------------------------------------------
-ITAM.copyJobs = { backup = true, snapshot = true, sync = true }
+local function definitionsOf(kind, entries)
+	local defaults, definitions = {}, {}
+	for _, entry in ipairs(ITAM.types[kind]) do
+		if type(entry) == "table" then defaults[entry.name] = entry end
+	end
+	for _, entry in ipairs(entries or ITAM.types[kind]) do
+		local isTable = type(entry) == "table"
+		local name = entry
+		if isTable then name = entry.name end
+		if name then
+			local definition = { name = name }
+			for key, value in pairs(defaults[name] or {}) do definition[key] = value end
+			if isTable then
+				for key, value in pairs(entry) do definition[key] = value end
+			end
+			table.insert(definitions, definition)
+		end
+	end
+	return definitions
+end
+
+-----------------------------------------------------------------------
+-- buildTypes()
+--
+-- The types of this space, per kind: `names` in their order and
+-- `byName`. A policy type that a job type names is always a policy
+-- type, added after the configured ones, so that overriding one of the
+-- two lists cannot break the other.
+-----------------------------------------------------------------------
+local function buildTypes()
+	local configured = ITAM.config().types
+	local built = {}
+	for kind, _ in pairs(ITAM.types) do
+		local definitions = definitionsOf(kind, configured[kind])
+		built[kind] = { names = {}, byName = {} }
+		for _, definition in ipairs(definitions) do
+			table.insert(built[kind].names, definition.name)
+			built[kind].byName[definition.name] = definition
+		end
+	end
+	for _, name in ipairs(built.job.names) do
+		local policy = built.job.byName[name].policy
+		if policy and not built.policy.byName[policy] then
+			table.insert(built.policy.names, policy)
+			built.policy.byName[policy] = { name = policy }
+		end
+	end
+	return built
+end
+
+local builtTypes = buildTypes()
 
 -----------------------------------------------------------------------
 -- ITAM.typesOf(kind)
 --
--- The allowed values of a kind in this space: the configured list,
--- else the default
+-- The allowed values of a kind in this space, as names: the configured
+-- list, else the default. Read when the library loads, as the schemas
+-- are.
 -----------------------------------------------------------------------
 function ITAM.typesOf(kind)
-	return ITAM.config().types[kind] or ITAM.types[kind] or {}
+	local built = builtTypes[kind]
+	return built and built.names or {}
+end
+
+-----------------------------------------------------------------------
+-- ITAM.definitionOf(kind, name)
+--
+-- The definition of one type of a kind, with its properties; an empty
+-- table for a type that is not defined
+-----------------------------------------------------------------------
+function ITAM.definitionOf(kind, name)
+	local built = builtTypes[kind]
+	return built and built.byName[name] or {}
 end
 
 -----------------------------------------------------------------------
@@ -268,9 +351,10 @@ end
 -----------------------------------------------------------------------
 function ITAM.copies(job)
 	local copies = {}
-	if not ITAM.copyJobs[job.type] then return copies end
+	local definition = ITAM.definitionOf("job", job.type)
+	if not definition.copy then return copies end
 	for _, source in ipairs(ITAM.list(job.source)) do
-		local targets = (job.type == "snapshot") and { source } or ITAM.list(job.target)
+		local targets = definition.inPlace and { source } or ITAM.list(job.target)
 		for _, target in ipairs(targets) do
 			table.insert(copies, { from = ITAM.unlink(source), to = ITAM.unlink(target) })
 		end
@@ -639,10 +723,11 @@ tag.define {
 	validate = function(o)
 		local bad = checkType("job", o.type)
 		if bad then return bad end
-		if ITAM.copyJobs[o.type] and not o.source then
+		local definition = ITAM.definitionOf("job", o.type)
+		if definition.copy and not o.source then
 			return "A " .. o.type .. " job needs a source"
 		end
-		if (o.type == "backup" or o.type == "sync") and not o.target then
+		if definition.copy and not definition.inPlace and not o.target then
 			return "A " .. o.type .. " job needs a target"
 		end
 	end,
