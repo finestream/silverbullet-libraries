@@ -25,8 +25,8 @@ shown. The library writes nothing but the pages you create from its templates.
 * *Views* every object page ends with `${ITAM.views.page(_CTX.currentPage.name)}`,
   which looks at the page's tags and shows the view for its kind, so a page
   that changes kind needs no edit.
-* *Backups as storage, policies and jobs* copy jobs (`backup`, `snapshot`,
-  `sync`) copy from a `source` storage to a `target` storage and `implements`
+* *Backups as storage, policies and jobs* copy jobs (by default `backup`,
+  `snapshot`, `sync`) copy from a `source` storage to a `target` storage and `implements`
   the policy they fulfil. The chain is never written down: the storage view
   follows source → job → target and counts the copies, the original included.
   A copy is offsite when it sits at another site than the original or on a
@@ -79,6 +79,11 @@ config.set {
     providers = "Providers",           -- the group of the hosts of type external in the architecture diagram
     types = {                          -- a list here replaces the default list of that kind
       host = { "server", "nas", "mac", "pc", "pi", "mobile", "appliance", "external", "unused" },
+      job = {                          -- an entry is a name, or a table with a name and properties
+        "backup", "snapshot", "sync",
+        { name = "mirror", copy = true, policy = "replication" },
+        "update", "test", "scrub", "script",
+      },
     },
     dr = {
       tagPage = "Computer/Decision",   -- the page the `dr` tag opens
@@ -103,9 +108,39 @@ The default type lists, in the order the views sort by:
 | `job` | `backup`, `snapshot`, `sync`, `update`, `test`, `scrub`, `script` |
 | `auth` (of a service) | `keycloak`, `forward-auth`, `own`, `none`, `n/a` |
 
-The library reads the configuration when it needs it. The schemas and the
-`dr` tag page are built when the library loads, so after a change to `CONFIG`
-run `System: Reload`, then `Space: Reindex`.
+### job types and policy types
+
+Each job type is defined once, with what it means; nothing else repeats it.
+These are the defaults:
+
+| Job type | `copy` | `inPlace` | `policy` |
+| --- | --- | --- | --- |
+| `backup` | yes | | `backup` |
+| `snapshot` | yes | yes | `snapshot` |
+| `sync` | yes | | `backup` |
+| `update`, `test`, `scrub`, `script` | | | |
+
+* `copy`: the job counts as a copy from `source` to `target`: the backup chain
+  follows it, and it needs a `source`.
+* `inPlace`: the copy stays on the source, so it needs no `target`, and any
+  `target` it lists is ignored. Without it, a copy job needs a `target`.
+* `policy`: the policy type that governs the job. It is always an allowed
+  policy type, added after the ones in `types.policy` if they leave it out. The
+  library does not check `implements` against it.
+
+An entry named like a default keeps that default's properties, so listing
+`"backup"` as a name is enough, and a table changes only the properties it
+sets. **A new name given as plain text is not a copy job:** a new copy job needs
+`copy = true`.
+
+### when the configuration is read
+
+The library reads `types`, builds the schemas and sets the `dr` tag page when
+it loads. It carries `-- priority: -10`
+([load order](https://silverbullet.md/Space%20Lua)), so it loads after every
+script without a priority, whatever page your `config.set` is on. A
+`config.set` with a priority below -10 comes too late. After a change to
+`CONFIG` run `System: Reload`, then `Space: Reindex`.
 
 ## Usage
 
@@ -150,9 +185,9 @@ everything into one block, each section and diagram in its own `div`.
 * A host needs a `location` unless its type is `external`; an `unused`
   reservation needs `lanIp`; every other host needs a `role`.
 * Storage that is part of no host needs a `location`.
-* A copy job needs a `source`; a backup or sync job needs a `target`. A
-  snapshot keeps its copy on the same storage, whatever else is listed as
-  target.
+* A job type with `copy` needs a `source`, and a `target` too unless it has
+  `inPlace`. An `inPlace` job keeps its copy on the same storage, whatever else
+  is listed as target.
 * A `location` must be one of `sites`, and an `area`, or each value of a list
   of areas, one of `dr.areas`, when those lists are configured.
 * `type` and `auth` must be in the list of their kind. A service's `type` may
@@ -168,7 +203,8 @@ everything on it), `ITAM.views.stack(name)` (the storage layers around a storage
 `nil` when it stands alone), `ITAM.backup.chain(name)`, `ITAM.backup.summary(name)`,
 `ITAM.backup.diagram(name)`, and the helpers in `ITAM` (`ITAM.list`, `ITAM.link`,
 `ITAM.unlink`, `ITAM.short`, `ITAM.pages(tag)`, `ITAM.page(name)`,
-`ITAM.byName(tag)`, `ITAM.copies(job)`, `ITAM.flowchart()`).
+`ITAM.byName(tag)`, `ITAM.copies(job)`, `ITAM.typesOf(kind)`,
+`ITAM.definitionOf(kind, name)`, `ITAM.flowchart()`).
 
 ### commands
 

@@ -43,8 +43,8 @@ shown. The library writes nothing but the pages you create from its templates.
 * *Views* every object page ends with `${ITAM.views.page(_CTX.currentPage.name)}`,
   which looks at the page's tags and shows the view for its kind, so a page
   that changes kind needs no edit.
-* *Backups as storage, policies and jobs* copy jobs (`backup`, `snapshot`,
-  `sync`) copy from a `source` storage to a `target` storage and `implements`
+* *Backups as storage, policies and jobs* copy jobs (by default `backup`,
+  `snapshot`, `sync`) copy from a `source` storage to a `target` storage and `implements`
   the policy they fulfil. The chain is never written down: the storage view
   follows source → job → target and counts the copies, the original included.
   A copy is offsite when it sits at another site than the original or on a
@@ -97,6 +97,11 @@ config.set {
     providers = "Providers",           -- the group of the hosts of type external in the architecture diagram
     types = {                          -- a list here replaces the default list of that kind
       host = { "server", "nas", "mac", "pc", "pi", "mobile", "appliance", "external", "unused" },
+      job = {                          -- an entry is a name, or a table with a name and properties
+        "backup", "snapshot", "sync",
+        { name = "mirror", copy = true, policy = "replication" },
+        "update", "test", "scrub", "script",
+      },
     },
     dr = {
       tagPage = "Computer/Decision",   -- the page the `dr` tag opens
@@ -121,9 +126,39 @@ The default type lists, in the order the views sort by:
 | `job` | `backup`, `snapshot`, `sync`, `update`, `test`, `scrub`, `script` |
 | `auth` (of a service) | `keycloak`, `forward-auth`, `own`, `none`, `n/a` |
 
-The library reads the configuration when it needs it. The schemas and the
-`dr` tag page are built when the library loads, so after a change to `CONFIG`
-run `System: Reload`, then `Space: Reindex`.
+### job types and policy types
+
+Each job type is defined once, with what it means; nothing else repeats it.
+These are the defaults:
+
+| Job type | `copy` | `inPlace` | `policy` |
+| --- | --- | --- | --- |
+| `backup` | yes | | `backup` |
+| `snapshot` | yes | yes | `snapshot` |
+| `sync` | yes | | `backup` |
+| `update`, `test`, `scrub`, `script` | | | |
+
+* `copy`: the job counts as a copy from `source` to `target`: the backup chain
+  follows it, and it needs a `source`.
+* `inPlace`: the copy stays on the source, so it needs no `target`, and any
+  `target` it lists is ignored. Without it, a copy job needs a `target`.
+* `policy`: the policy type that governs the job. It is always an allowed
+  policy type, added after the ones in `types.policy` if they leave it out. The
+  library does not check `implements` against it.
+
+An entry named like a default keeps that default's properties, so listing
+`"backup"` as a name is enough, and a table changes only the properties it
+sets. **A new name given as plain text is not a copy job:** a new copy job needs
+`copy = true`.
+
+### when the configuration is read
+
+The library reads `types`, builds the schemas and sets the `dr` tag page when
+it loads. It carries `-- priority: -10`
+([load order](https://silverbullet.md/Space%20Lua)), so it loads after every
+script without a priority, whatever page your `config.set` is on. A
+`config.set` with a priority below -10 comes too late. After a change to
+`CONFIG` run `System: Reload`, then `Space: Reindex`.
 
 ## Usage
 
@@ -168,9 +203,9 @@ everything into one block, each section and diagram in its own `div`.
 * A host needs a `location` unless its type is `external`; an `unused`
   reservation needs `lanIp`; every other host needs a `role`.
 * Storage that is part of no host needs a `location`.
-* A copy job needs a `source`; a backup or sync job needs a `target`. A
-  snapshot keeps its copy on the same storage, whatever else is listed as
-  target.
+* A job type with `copy` needs a `source`, and a `target` too unless it has
+  `inPlace`. An `inPlace` job keeps its copy on the same storage, whatever else
+  is listed as target.
 * A `location` must be one of `sites`, and an `area`, or each value of a list
   of areas, one of `dr.areas`, when those lists are configured.
 * `type` and `auth` must be in the list of their kind. A service's `type` may
@@ -186,7 +221,8 @@ everything on it), `ITAM.views.stack(name)` (the storage layers around a storage
 `nil` when it stands alone), `ITAM.backup.chain(name)`, `ITAM.backup.summary(name)`,
 `ITAM.backup.diagram(name)`, and the helpers in `ITAM` (`ITAM.list`, `ITAM.link`,
 `ITAM.unlink`, `ITAM.short`, `ITAM.pages(tag)`, `ITAM.page(name)`,
-`ITAM.byName(tag)`, `ITAM.copies(job)`, `ITAM.flowchart()`).
+`ITAM.byName(tag)`, `ITAM.copies(job)`, `ITAM.typesOf(kind)`,
+`ITAM.definitionOf(kind, name)`, `ITAM.flowchart()`).
 
 ### commands
 
@@ -223,6 +259,7 @@ lists the allowed values as comments.
 ## Code
 
 ```space-lua
+-- priority: -10
 -----------------------------------------------------------------------
 -- Package ITAM
 --
@@ -232,6 +269,12 @@ lists the allowed values as comments.
 -- One global, `ITAM` (configuration, lists, helpers, schemas), with
 -- `ITAM.backup` (the chain) and `ITAM.views` (what pages call).
 -- Everything else is local.
+--
+-- The priority on the first line loads this script after every script
+-- without a priority, so the configuration is complete whatever page it
+-- is on when the definitions and schemas below are built from it. All
+-- fragments of the library are one script, so their order is the build
+-- order.
 -----------------------------------------------------------------------
 ITAM = {}
 
@@ -254,7 +297,7 @@ ITAM.defaults = {
 	-- The group of the hosts of type external in the architecture diagram
 	providers = "Providers",
 	-- Per kind (host, service, storage, network, policy, job, auth), a list of
-	-- values that replaces the default list of ITAM.types
+	-- definitions that replaces the default list of ITAM.types
 	types = {},
 	-- Decision records
 	dr = {
@@ -314,6 +357,11 @@ end
 -- Default `type` values per kind, and the `auth` values of a service;
 -- the order is also the sort order in the views. A space replaces a
 -- list with `types.<kind>`.
+--
+-- An entry is a name, or a table with a name and properties. The
+-- properties of a job type: `copy` (counts as a copy from source to
+-- target), `inPlace` (the copy stays on the source, so there is no
+-- target) and `policy` (the policy type that governs it).
 -----------------------------------------------------------------------
 ITAM.types = {
 	host    = { "server", "nas", "mac", "pc", "pi", "mobile", "appliance", "external", "unused" },
@@ -322,24 +370,95 @@ ITAM.types = {
 		"lvm-lv", "volume", "share", "folder", "repository", "cloud" },
 	network = { "lan", "tailnet", "internet", "docker-bridge", "docker-macvlan" },
 	policy  = { "backup", "snapshot", "retention" },
-	job     = { "backup", "snapshot", "sync", "update", "test", "scrub", "script" },
+	job     = {
+		{ name = "backup", copy = true, policy = "backup" },
+		{ name = "snapshot", copy = true, inPlace = true, policy = "snapshot" },
+		{ name = "sync", copy = true, policy = "backup" },
+		"update", "test", "scrub", "script",
+	},
 	auth    = { "keycloak", "forward-auth", "own", "none", "n/a" },
 }
 -----------------------------------------------------------------------
--- ITAM.copyJobs
+-- definitionsOf(kind, entries)
 --
--- Job types that copy from source to target
+-- The entries of a kind as definitions, in their order. An entry named
+-- like a default starts from that default's properties, so a space
+-- that lists "backup" as a name keeps what a backup is. A table without
+-- a name defines nothing.
 -----------------------------------------------------------------------
-ITAM.copyJobs = { backup = true, snapshot = true, sync = true }
+local function definitionsOf(kind, entries)
+	local defaults, definitions = {}, {}
+	for _, entry in ipairs(ITAM.types[kind]) do
+		if type(entry) == "table" then defaults[entry.name] = entry end
+	end
+	for _, entry in ipairs(entries or ITAM.types[kind]) do
+		local isTable = type(entry) == "table"
+		local name = entry
+		if isTable then name = entry.name end
+		if name then
+			local definition = { name = name }
+			for key, value in pairs(defaults[name] or {}) do definition[key] = value end
+			if isTable then
+				for key, value in pairs(entry) do definition[key] = value end
+			end
+			table.insert(definitions, definition)
+		end
+	end
+	return definitions
+end
+
+-----------------------------------------------------------------------
+-- buildTypes()
+--
+-- The types of this space, per kind: `names` in their order and
+-- `byName`. A policy type that a job type names is always a policy
+-- type, added after the configured ones, so that overriding one of the
+-- two lists cannot break the other.
+-----------------------------------------------------------------------
+local function buildTypes()
+	local configured = ITAM.config().types
+	local built = {}
+	for kind, _ in pairs(ITAM.types) do
+		local definitions = definitionsOf(kind, configured[kind])
+		built[kind] = { names = {}, byName = {} }
+		for _, definition in ipairs(definitions) do
+			table.insert(built[kind].names, definition.name)
+			built[kind].byName[definition.name] = definition
+		end
+	end
+	for _, name in ipairs(built.job.names) do
+		local policy = built.job.byName[name].policy
+		if policy and not built.policy.byName[policy] then
+			table.insert(built.policy.names, policy)
+			built.policy.byName[policy] = { name = policy }
+		end
+	end
+	return built
+end
+
+local builtTypes = buildTypes()
 
 -----------------------------------------------------------------------
 -- ITAM.typesOf(kind)
 --
--- The allowed values of a kind in this space: the configured list,
--- else the default
+-- The allowed values of a kind in this space, as names: the configured
+-- list, else the default. Read when the library loads, as the schemas
+-- are.
 -----------------------------------------------------------------------
 function ITAM.typesOf(kind)
-	return ITAM.config().types[kind] or ITAM.types[kind] or {}
+	local built = builtTypes[kind]
+	return built and built.names or {}
+end
+
+-----------------------------------------------------------------------
+-- ITAM.definitionOf(kind, name)
+--
+-- The definition of one type of a kind, with its properties; an empty
+-- table for a type that is not defined
+-----------------------------------------------------------------------
+function ITAM.definitionOf(kind, name)
+	local built = builtTypes[kind]
+	return built and built.byName[name] or {}
 end
 
 -----------------------------------------------------------------------
@@ -493,9 +612,10 @@ end
 -----------------------------------------------------------------------
 function ITAM.copies(job)
 	local copies = {}
-	if not ITAM.copyJobs[job.type] then return copies end
+	local definition = ITAM.definitionOf("job", job.type)
+	if not definition.copy then return copies end
 	for _, source in ipairs(ITAM.list(job.source)) do
-		local targets = (job.type == "snapshot") and { source } or ITAM.list(job.target)
+		local targets = definition.inPlace and { source } or ITAM.list(job.target)
 		for _, target in ipairs(targets) do
 			table.insert(copies, { from = ITAM.unlink(source), to = ITAM.unlink(target) })
 		end
@@ -864,10 +984,11 @@ tag.define {
 	validate = function(o)
 		local bad = checkType("job", o.type)
 		if bad then return bad end
-		if ITAM.copyJobs[o.type] and not o.source then
+		local definition = ITAM.definitionOf("job", o.type)
+		if definition.copy and not o.source then
 			return "A " .. o.type .. " job needs a source"
 		end
-		if (o.type == "backup" or o.type == "sync") and not o.target then
+		if definition.copy and not definition.inPlace and not o.target then
 			return "A " .. o.type .. " job needs a target"
 		end
 	end,
@@ -1377,8 +1498,8 @@ end
 -----------------------------------------------------------------------
 -- ITAM.views.types(kind)
 --
--- The allowed `type` values in their configured order, read when the
--- page is shown. With a kind: that kind's values as inline text, each
+-- The allowed `type` values in their configured order. With a kind:
+-- that kind's values as inline text, each
 -- as code; a short message for an unknown kind. Without: a table of
 -- every kind.
 -----------------------------------------------------------------------
