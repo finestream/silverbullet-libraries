@@ -1,6 +1,6 @@
 ---
 tags: meta/template/page
-description: A decision record (tag dr) with the fields of the IT Asset Management library.
+description: A decision record (tag dr) with the fields of the ITAM library.
 command: "ITAM: New Decision"
 suggestedName: "${ITAM.pagePrefix()}Decision/"
 confirmName: true
