@@ -1,6 +1,6 @@
 ---
 tags: meta/template/page
-description: A service (something that runs and offers a function) of the IT Asset Management library.
+description: A service (something that runs and offers a function) of the ITAM library.
 command: "ITAM: New Service"
 suggestedName: "${ITAM.pagePrefix()}Service/"
 confirmName: true

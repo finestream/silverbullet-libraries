@@ -1,6 +1,6 @@
 ---
 tags: meta/template/page
-description: A policy (a rule that storage must meet) of the IT Asset Management library.
+description: A policy (a rule that storage must meet) of the ITAM library.
 command: "ITAM: New Policy"
 suggestedName: "${ITAM.pagePrefix()}Policy/"
 confirmName: true
