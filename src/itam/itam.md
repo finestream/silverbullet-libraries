@@ -28,8 +28,9 @@ shown. The library writes nothing but the pages you create from its templates.
 * *Backups as storage, policies and jobs* copy jobs (`backup`, `snapshot`,
   `sync`) copy from a `source` storage to a `target` storage and `implements`
   the policy they fulfil. The chain is never written down: the storage view
-  follows source → job → target and counts the copies, the offsite copies
-  included.
+  follows source → job → target and counts the copies, the original included.
+  A copy is offsite when it sits at another site than the original or on a
+  host of type `external`, so storage on an `external` host is offsite itself.
 * *Index pages and diagrams* `ITAM.views.index(tag)` lists every object of one
   kind, `ITAM.views.copies()` the copies of every protected storage,
   `ITAM.views.architecture()` draws the hosts by site with the networks they are
@@ -140,7 +141,7 @@ library's own; a space that restricts what pages may call (an allowlist) needs
 Every section is always shown; an empty one says *none*. Lists are sorted by
 `type`, in the order of the type list, then by name. Tables are built as
 Markdown; a view with a diagram converts its tables to HTML and joins
-everything into one block.
+everything into one block, each section and diagram in its own `div`.
 
 ### the rules the schemas enforce
 
