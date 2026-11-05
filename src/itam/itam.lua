@@ -49,10 +49,30 @@ ITAM.defaults = {
 }
 
 -----------------------------------------------------------------------
+-- listOf(value)
+--
+-- A configured list as a Lua list: nil -> {}, "x" -> {"x"}, {...} ->
+-- a copy. config.get returns an empty list (`sites = {}`) as an empty
+-- object, on which `#` raises "attempt to get length of a table
+-- value"; the copy has a length.
+-----------------------------------------------------------------------
+local function listOf(value)
+	local list = {}
+	if type(value) == "table" then
+		for _, entry in ipairs(value) do table.insert(list, entry) end
+	elseif value ~= nil then
+		table.insert(list, value)
+	end
+	return list
+end
+
+-----------------------------------------------------------------------
 -- ITAM.config()
 --
 -- The configuration of this space merged over the defaults (`dr` one
--- level deep)
+-- level deep). Every list (`roots`, `sites`, `types.<kind>`,
+-- `dr.areas`) comes back as a Lua list, also when the space left it
+-- empty, so the callers may take its length.
 -----------------------------------------------------------------------
 function ITAM.config()
 	local set = config.get("itam", {}) or {}
@@ -61,9 +81,15 @@ function ITAM.config()
 	for key, value in pairs(set) do
 		if key ~= "dr" then cfg[key] = value end
 	end
+	cfg.roots = listOf(cfg.roots)
+	cfg.sites = listOf(cfg.sites)
+	local types = {}
+	for kind, entries in pairs(cfg.types or {}) do types[kind] = listOf(entries) end
+	cfg.types = types
 	cfg.dr = {}
 	for key, value in pairs(ITAM.defaults.dr) do cfg.dr[key] = value end
 	for key, value in pairs(set.dr or {}) do cfg.dr[key] = value end
+	cfg.dr.areas = listOf(cfg.dr.areas)
 	return cfg
 end
 
