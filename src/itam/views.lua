@@ -379,8 +379,8 @@ end
 -----------------------------------------------------------------------
 -- ITAM.views.types(kind)
 --
--- The allowed `type` values in their configured order, read when the
--- page is shown. With a kind: that kind's values as inline text, each
+-- The allowed `type` values in their configured order. With a kind:
+-- that kind's values as inline text, each
 -- as code; a short message for an unknown kind. Without: a table of
 -- every kind.
 -----------------------------------------------------------------------
