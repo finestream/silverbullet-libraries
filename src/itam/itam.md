@@ -37,7 +37,7 @@ shown. The library writes nothing but the pages you create from its templates.
   on, `ITAM.views.decisions {…}` draws the decisions as a graph.
 * *Decision records* the tag `dr` after the ADR pattern: `status`
   (`proposed` → `provisional` → `accepted`, then `superseded` or `deprecated`;
-  `rejected` is a dead end), `area`, `deciders`, `owner`, `lastReviewed`,
+  `rejected` is a dead end), `area` (one value or a list), `deciders`, `owner`, `lastReviewed`,
   `supersedes`, `dependsOn`, `related`. Two views list what needs attention:
   `ITAM.views.drDueForReview()` and `ITAM.views.drProvisional()`.
 * *Page templates* one command per kind (`ITAM: New Host`, `ITAM: New Service`,
@@ -82,7 +82,7 @@ config.set {
     },
     dr = {
       tagPage = "Computer/Decision",   -- the page the `dr` tag opens
-      areas = { "infrastructure", "knowledge" }, -- allowed `area` values; {} allows any text
+      areas = { "infrastructure", "knowledge" }, -- allowed `area` values, one or a list per decision; {} allows any text
       deciders = "@me",                -- `deciders` of a new decision
       owner = "@me",                   -- `owner` of a new decision
       reviewDays = 180,                -- a decision is due for review this many days after lastReviewed
@@ -117,8 +117,9 @@ run `System: Reload`, then `Space: Reindex`.
 | `${ITAM.views.index("host")}` | the index page next to each kind's folder (`host`, `service`, `storage`, `network`, `policy`, `job`, `dr`) |
 | `${ITAM.views.copies()}` | the policy index: copies and offsite copies of every protected storage |
 | `${ITAM.views.architecture()}` | the entry page: hosts by site, with their networks |
-| `${ITAM.views.types()}` | any page: the allowed `type` values of every kind in this space, so a page need not copy them |
-| `${ITAM.views.decisions { area = "…", statuses = { "…" }, relations = { "dependsOn", "related", "supersedes" } }}` | a decision index: the decisions as a graph; every option is optional |
+| `${ITAM.views.types()}` | any page: the allowed `type` values of every kind in this space, as a table, so a page need not copy them |
+| `${ITAM.views.types("host")}` | any page: the allowed `type` values of one kind (`host`, `service`, `network`, `storage`, `policy`, `job`) as an inline list, in the configured order |
+| `${ITAM.views.decisions { area = "…", statuses = { "…" }, relations = { "dependsOn", "related", "supersedes" } }}` | a decision index: the decisions as a graph; every option is optional; `area` keeps the decisions of that area, also those that list it among several |
 | `${ITAM.views.drDueForReview(180)}` | a decision index: active decisions not reviewed for that many days (default: `reviewDays`) |
 | `${ITAM.views.drProvisional()}` | a decision index: the provisional decisions, longest unchanged first |
 
@@ -152,8 +153,8 @@ everything into one block, each section and diagram in its own `div`.
 * A copy job needs a `source`; a backup or sync job needs a `target`. A
   snapshot keeps its copy on the same storage, whatever else is listed as
   target.
-* A `location` must be one of `sites` and an `area` one of `dr.areas`, when
-  those lists are configured.
+* A `location` must be one of `sites`, and an `area`, or each value of a list
+  of areas, one of `dr.areas`, when those lists are configured.
 * `type` and `auth` must be in the list of their kind. A service's `type` may
   be a list when it runs differently per host.
 * A `domain` is an extra tag on a service of type `external`: `registered`

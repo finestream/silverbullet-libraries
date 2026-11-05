@@ -11,3 +11,17 @@ ${ITAM.views.architecture()}
 ## Types
 
 ${ITAM.views.types()}
+
+Hosts: ${ITAM.views.types("host")}
+
+Services: ${ITAM.views.types("service")}
+
+Networks: ${ITAM.views.types("network")}
+
+Storage: ${ITAM.views.types("storage")}
+
+Policies: ${ITAM.views.types("policy")}
+
+Jobs: ${ITAM.views.types("job")}
+
+Unknown: ${ITAM.views.types("nonsense")}

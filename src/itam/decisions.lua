@@ -25,7 +25,8 @@ ITAM.drActive = { proposed = true, provisional = true, accepted = true }
 --
 -- The configured areas become an enum and the configured tag page is
 -- set when the library loads; `validate` checks the area again when a
--- page is indexed.
+-- page is indexed. A decision may belong to several areas: `area` is
+-- one value or a list.
 -----------------------------------------------------------------------
 local drConfig = ITAM.config().dr
 local drSpec = {
@@ -58,10 +59,7 @@ local drSpec = {
 				type = "string",
 				description = "Date this decision was last reviewed (YYYY-MM-DD); feeds the review view."
 			},
-			area = {
-				type = "string",
-				description = "Which part of the space the decision belongs to; the allowed values are configured (dr.areas under the `itam` key of CONFIG)."
-			},
+			area = oneOrMore(drConfig.areas),
 			supersedes = {
 				anyOf = { schema.array("string"), schema.null() },
 				description = "The decision(s) this one supersedes, as page links. The inverse is a backlink."
@@ -79,7 +77,7 @@ local drSpec = {
 	},
 	validate = function(o)
 		local areas = ITAM.config().dr.areas
-		if o.area ~= nil and not ITAM.oneOf(o.area, areas) then
+		if not ITAM.allOf(o.area, areas) then
 			return "area must be one of " .. table.concat(areas, ", ")
 		end
 	end,
@@ -88,15 +86,28 @@ local drSpec = {
 		return o
 	end,
 }
-if #drConfig.areas > 0 then drSpec.schema.properties.area.enum = drConfig.areas end
+drSpec.schema.properties.area.description = "Which part(s) of the space the decision belongs to: one value or a list; the allowed values are configured (dr.areas under the `itam` key of CONFIG)."
 if drConfig.tagPage then drSpec.tagPage = drConfig.tagPage end
 tag.define(drSpec)
+
+-----------------------------------------------------------------------
+-- inArea(page, area)
+--
+-- Whether `area` is the area of a decision or one of its list of areas
+-----------------------------------------------------------------------
+local function inArea(page, area)
+	for _, value in ipairs(ITAM.list(page.area)) do
+		if value == area then return true end
+	end
+	return false
+end
 
 -----------------------------------------------------------------------
 -- ITAM.views.decisions(opts)
 --
 -- Decision records as a graph: nodes carry the status dot and the id.
--- opts.area (optional) keeps one area; opts.statuses (optional list)
+-- opts.area (optional) keeps the decisions of one area, those that list
+-- it among several included; opts.statuses (optional list)
 -- keeps those statuses; opts.relations (default { "dependsOn" }) says
 -- which frontmatter links become edges; `related` is drawn without
 -- arrow label, `supersedes` labelled. Links to decisions outside the
@@ -113,7 +124,7 @@ function ITAM.views.decisions(opts)
 	end
 	local pages, selected = {}, {}
 	for _, page in ipairs(ITAM.pages("dr")) do
-		if (not opts.area or page.area == opts.area) and (not keep or keep[page.status]) then
+		if (not opts.area or inArea(page, opts.area)) and (not keep or keep[page.status]) then
 			table.insert(pages, page)
 			selected[page.name] = true
 		end
