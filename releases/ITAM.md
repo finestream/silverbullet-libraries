@@ -55,7 +55,7 @@ shown. The library writes nothing but the pages you create from its templates.
   on, `ITAM.views.decisions {…}` draws the decisions as a graph.
 * *Decision records* the tag `dr` after the ADR pattern: `status`
   (`proposed` → `provisional` → `accepted`, then `superseded` or `deprecated`;
-  `rejected` is a dead end), `area`, `deciders`, `owner`, `lastReviewed`,
+  `rejected` is a dead end), `area` (one value or a list), `deciders`, `owner`, `lastReviewed`,
   `supersedes`, `dependsOn`, `related`. Two views list what needs attention:
   `ITAM.views.drDueForReview()` and `ITAM.views.drProvisional()`.
 * *Page templates* one command per kind (`ITAM: New Host`, `ITAM: New Service`,
@@ -100,7 +100,7 @@ config.set {
     },
     dr = {
       tagPage = "Computer/Decision",   -- the page the `dr` tag opens
-      areas = { "infrastructure", "knowledge" }, -- allowed `area` values; {} allows any text
+      areas = { "infrastructure", "knowledge" }, -- allowed `area` values, one or a list per decision; {} allows any text
       deciders = "@me",                -- `deciders` of a new decision
       owner = "@me",                   -- `owner` of a new decision
       reviewDays = 180,                -- a decision is due for review this many days after lastReviewed
@@ -135,8 +135,9 @@ run `System: Reload`, then `Space: Reindex`.
 | `${ITAM.views.index("host")}` | the index page next to each kind's folder (`host`, `service`, `storage`, `network`, `policy`, `job`, `dr`) |
 | `${ITAM.views.copies()}` | the policy index: copies and offsite copies of every protected storage |
 | `${ITAM.views.architecture()}` | the entry page: hosts by site, with their networks |
-| `${ITAM.views.types()}` | any page: the allowed `type` values of every kind in this space, so a page need not copy them |
-| `${ITAM.views.decisions { area = "…", statuses = { "…" }, relations = { "dependsOn", "related", "supersedes" } }}` | a decision index: the decisions as a graph; every option is optional |
+| `${ITAM.views.types()}` | any page: the allowed `type` values of every kind in this space, as a table, so a page need not copy them |
+| `${ITAM.views.types("host")}` | any page: the allowed `type` values of one kind (`host`, `service`, `network`, `storage`, `policy`, `job`) as an inline list, in the configured order |
+| `${ITAM.views.decisions { area = "…", statuses = { "…" }, relations = { "dependsOn", "related", "supersedes" } }}` | a decision index: the decisions as a graph; every option is optional; `area` keeps the decisions of that area, also those that list it among several |
 | `${ITAM.views.drDueForReview(180)}` | a decision index: active decisions not reviewed for that many days (default: `reviewDays`) |
 | `${ITAM.views.drProvisional()}` | a decision index: the provisional decisions, longest unchanged first |
 
@@ -170,8 +171,8 @@ everything into one block, each section and diagram in its own `div`.
 * A copy job needs a `source`; a backup or sync job needs a `target`. A
   snapshot keeps its copy on the same storage, whatever else is listed as
   target.
-* A `location` must be one of `sites` and an `area` one of `dr.areas`, when
-  those lists are configured.
+* A `location` must be one of `sites`, and an `area`, or each value of a list
+  of areas, one of `dr.areas`, when those lists are configured.
 * `type` and `auth` must be in the list of their kind. A service's `type` may
   be a list when it runs differently per host.
 * A `domain` is an extra tag on a service of type `external`: `registered`
@@ -1374,14 +1375,27 @@ function ITAM.views.copies()
 end
 
 -----------------------------------------------------------------------
--- ITAM.views.types()
+-- ITAM.views.types(kind)
 --
--- The allowed `type` values of every kind in this space, in their
--- configured order, read when the page is shown
+-- The allowed `type` values in their configured order, read when the
+-- page is shown. With a kind: that kind's values as inline text, each
+-- as code; a short message for an unknown kind. Without: a table of
+-- every kind.
 -----------------------------------------------------------------------
-function ITAM.views.types()
+function ITAM.views.types(kind)
+	local typeKinds = { "host", "service", "network", "storage", "policy", "job" }
+	if kind ~= nil then
+		if not ITAM.oneOf(kind, typeKinds) then
+			return "*Unknown kind `" .. tostring(kind) .. "`: use one of " .. table.concat(typeKinds, ", ") .. ".*"
+		end
+		local values = {}
+		for _, value in ipairs(ITAM.typesOf(kind)) do
+			table.insert(values, "`" .. value .. "`")
+		end
+		return table.concat(values, ", ")
+	end
 	local rows = {}
-	for _, tagName in ipairs({ "host", "service", "network", "storage", "policy", "job" }) do
+	for _, tagName in ipairs(typeKinds) do
 		table.insert(rows, { kinds[tagName].title, tagName, ITAM.hint(tagName) })
 	end
 	return widget.markdownBlock(section("Allowed types", { "kind", "tag", "types" }, rows))
@@ -1595,7 +1609,8 @@ ITAM.drActive = { proposed = true, provisional = true, accepted = true }
 --
 -- The configured areas become an enum and the configured tag page is
 -- set when the library loads; `validate` checks the area again when a
--- page is indexed.
+-- page is indexed. A decision may belong to several areas: `area` is
+-- one value or a list.
 -----------------------------------------------------------------------
 local drConfig = ITAM.config().dr
 local drSpec = {
@@ -1628,10 +1643,7 @@ local drSpec = {
 				type = "string",
 				description = "Date this decision was last reviewed (YYYY-MM-DD); feeds the review view."
 			},
-			area = {
-				type = "string",
-				description = "Which part of the space the decision belongs to; the allowed values are configured (dr.areas under the `itam` key of CONFIG)."
-			},
+			area = oneOrMore(drConfig.areas),
 			supersedes = {
 				anyOf = { schema.array("string"), schema.null() },
 				description = "The decision(s) this one supersedes, as page links. The inverse is a backlink."
@@ -1649,7 +1661,7 @@ local drSpec = {
 	},
 	validate = function(o)
 		local areas = ITAM.config().dr.areas
-		if o.area ~= nil and not ITAM.oneOf(o.area, areas) then
+		if not ITAM.allOf(o.area, areas) then
 			return "area must be one of " .. table.concat(areas, ", ")
 		end
 	end,
@@ -1658,15 +1670,28 @@ local drSpec = {
 		return o
 	end,
 }
-if #drConfig.areas > 0 then drSpec.schema.properties.area.enum = drConfig.areas end
+drSpec.schema.properties.area.description = "Which part(s) of the space the decision belongs to: one value or a list; the allowed values are configured (dr.areas under the `itam` key of CONFIG)."
 if drConfig.tagPage then drSpec.tagPage = drConfig.tagPage end
 tag.define(drSpec)
+
+-----------------------------------------------------------------------
+-- inArea(page, area)
+--
+-- Whether `area` is the area of a decision or one of its list of areas
+-----------------------------------------------------------------------
+local function inArea(page, area)
+	for _, value in ipairs(ITAM.list(page.area)) do
+		if value == area then return true end
+	end
+	return false
+end
 
 -----------------------------------------------------------------------
 -- ITAM.views.decisions(opts)
 --
 -- Decision records as a graph: nodes carry the status dot and the id.
--- opts.area (optional) keeps one area; opts.statuses (optional list)
+-- opts.area (optional) keeps the decisions of one area, those that list
+-- it among several included; opts.statuses (optional list)
 -- keeps those statuses; opts.relations (default { "dependsOn" }) says
 -- which frontmatter links become edges; `related` is drawn without
 -- arrow label, `supersedes` labelled. Links to decisions outside the
@@ -1683,7 +1708,7 @@ function ITAM.views.decisions(opts)
 	end
 	local pages, selected = {}, {}
 	for _, page in ipairs(ITAM.pages("dr")) do
-		if (not opts.area or page.area == opts.area) and (not keep or keep[page.status]) then
+		if (not opts.area or inArea(page, opts.area)) and (not keep or keep[page.status]) then
 			table.insert(pages, page)
 			selected[page.name] = true
 		end
