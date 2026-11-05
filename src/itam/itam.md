@@ -117,6 +117,7 @@ run `System: Reload`, then `Space: Reindex`.
 | `${ITAM.views.index("host")}` | the index page next to each kind's folder (`host`, `service`, `storage`, `network`, `policy`, `job`, `dr`) |
 | `${ITAM.views.copies()}` | the policy index: copies and offsite copies of every protected storage |
 | `${ITAM.views.architecture()}` | the entry page: hosts by site, with their networks |
+| `${ITAM.views.types()}` | any page: the allowed `type` values of every kind in this space, so a page need not copy them |
 | `${ITAM.views.decisions { area = "…", statuses = { "…" }, relations = { "dependsOn", "related", "supersedes" } }}` | a decision index: the decisions as a graph; every option is optional |
 | `${ITAM.views.drDueForReview(180)}` | a decision index: active decisions not reviewed for that many days (default: `reviewDays`) |
 | `${ITAM.views.drProvisional()}` | a decision index: the provisional decisions, longest unchanged first |

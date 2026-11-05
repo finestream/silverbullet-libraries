@@ -377,6 +377,20 @@ function ITAM.views.copies()
 end
 
 -----------------------------------------------------------------------
+-- ITAM.views.types()
+--
+-- The allowed `type` values of every kind in this space, in their
+-- configured order, read when the page is shown
+-----------------------------------------------------------------------
+function ITAM.views.types()
+	local rows = {}
+	for _, tagName in ipairs({ "host", "service", "network", "storage", "policy", "job" }) do
+		table.insert(rows, { kinds[tagName].title, tagName, ITAM.hint(tagName) })
+	end
+	return widget.markdownBlock(section("Allowed types", { "kind", "tag", "types" }, rows))
+end
+
+-----------------------------------------------------------------------
 -- One view per kind
 -----------------------------------------------------------------------
 
