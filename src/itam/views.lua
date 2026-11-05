@@ -377,14 +377,27 @@ function ITAM.views.copies()
 end
 
 -----------------------------------------------------------------------
--- ITAM.views.types()
+-- ITAM.views.types(kind)
 --
--- The allowed `type` values of every kind in this space, in their
--- configured order, read when the page is shown
+-- The allowed `type` values in their configured order, read when the
+-- page is shown. With a kind: that kind's values as inline text, each
+-- as code; a short message for an unknown kind. Without: a table of
+-- every kind.
 -----------------------------------------------------------------------
-function ITAM.views.types()
+function ITAM.views.types(kind)
+	local typeKinds = { "host", "service", "network", "storage", "policy", "job" }
+	if kind ~= nil then
+		if not ITAM.oneOf(kind, typeKinds) then
+			return "*Unknown kind `" .. tostring(kind) .. "`: use one of " .. table.concat(typeKinds, ", ") .. ".*"
+		end
+		local values = {}
+		for _, value in ipairs(ITAM.typesOf(kind)) do
+			table.insert(values, "`" .. value .. "`")
+		end
+		return table.concat(values, ", ")
+	end
 	local rows = {}
-	for _, tagName in ipairs({ "host", "service", "network", "storage", "policy", "job" }) do
+	for _, tagName in ipairs(typeKinds) do
 		table.insert(rows, { kinds[tagName].title, tagName, ITAM.hint(tagName) })
 	end
 	return widget.markdownBlock(section("Allowed types", { "kind", "tag", "types" }, rows))
