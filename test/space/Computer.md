@@ -7,3 +7,7 @@ exercise the tables and diagrams.
 ## Architecture
 
 ${ITAM.views.architecture()}
+
+## Types
+
+${ITAM.views.types()}
