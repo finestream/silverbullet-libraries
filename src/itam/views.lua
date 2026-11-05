@@ -137,7 +137,9 @@ end
 --
 -- Sections are Markdown strings, diagrams are widgets. Without a
 -- diagram the result is one Markdown block; with one, everything
--- becomes one HTML block.
+-- becomes one HTML block, each part in its own div: markdownToHtml
+-- renders a paragraph as an inline span, so the parts would otherwise
+-- flow into each other and around the diagrams.
 -----------------------------------------------------------------------
 local function compose(parts)
 	local hasDiagram = false
@@ -149,12 +151,14 @@ local function compose(parts)
 	end
 	local html, events = {}, nil
 	for _, part in ipairs(parts) do
+		local body
 		if type(part) == "string" then
-			table.insert(html, markdown.markdownToHtml(part))
+			body = markdown.markdownToHtml(part)
 		else
-			table.insert(html, part.html)
+			body = part.html
 			events = events or part.events
 		end
+		table.insert(html, '<div style="margin-bottom: 1em">' .. body .. "</div>")
 	end
 	return widget.new { html = table.concat(html), display = "block", events = events }
 end
@@ -428,7 +432,7 @@ local function storageView(name)
 	local parts = {}
 	addDiagram(parts, "Stack", ITAM.views.stack(name))
 	table.insert(parts, section(
-		"Backup chain: " .. summary.copies .. " copies, " .. summary.offsite .. " offsite",
+		"Backup chain: " .. summary.copies .. ((summary.copies == 1) and " copy, " or " copies, ") .. summary.offsite .. " offsite",
 		{ "level", "from", "job", "tool", "schedule", "to" }, rows))
 	addDiagram(parts, "Backup diagram", (#chain > 0) and ITAM.backup.diagram(name, chain, pages) or nil)
 	return parts

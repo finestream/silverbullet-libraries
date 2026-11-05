@@ -67,9 +67,10 @@ end
 -----------------------------------------------------------------------
 -- ITAM.backup.summary(start, rows, pages)
 --
--- Copies in the chain (the original included), and how many sit at
--- another site. `rows` and `pages` are optional, to reuse a chain or
--- the component pages.
+-- Copies in the chain (the original included), and how many are
+-- offsite: at another site than the original, or on a host of type
+-- external, the original itself included. `rows` and `pages` are
+-- optional, to reuse a chain or the component pages.
 -----------------------------------------------------------------------
 function ITAM.backup.summary(start, rows, pages)
 	rows = rows or ITAM.backup.chain(start)
@@ -81,7 +82,7 @@ function ITAM.backup.summary(start, rows, pages)
 		counted[name] = true
 		for _, site in ipairs(sitesOf(name, pages)) do
 			copies = copies + 1
-			if site ~= home then offsite = offsite + 1 end
+			if site == "external" or site ~= home then offsite = offsite + 1 end
 		end
 	end
 	count(start)
