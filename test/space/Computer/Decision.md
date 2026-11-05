@@ -6,6 +6,16 @@ ${ITAM.views.index("dr")}
 
 ${ITAM.views.decisions { statuses = { "accepted", "provisional", "proposed" }, relations = { "dependsOn", "related", "supersedes" } }}
 
+## Per area
+
+### infrastructure
+
+${ITAM.views.decisions { area = "infrastructure" }}
+
+### knowledge
+
+${ITAM.views.decisions { area = "knowledge" }}
+
 ## Attention
 
 ${ITAM.views.drDueForReview()}
