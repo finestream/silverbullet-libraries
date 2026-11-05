@@ -46,8 +46,9 @@ shown. The library writes nothing but the pages you create from its templates.
 * *Backups as storage, policies and jobs* copy jobs (`backup`, `snapshot`,
   `sync`) copy from a `source` storage to a `target` storage and `implements`
   the policy they fulfil. The chain is never written down: the storage view
-  follows source → job → target and counts the copies, the offsite copies
-  included.
+  follows source → job → target and counts the copies, the original included.
+  A copy is offsite when it sits at another site than the original or on a
+  host of type `external`, so storage on an `external` host is offsite itself.
 * *Index pages and diagrams* `ITAM.views.index(tag)` lists every object of one
   kind, `ITAM.views.copies()` the copies of every protected storage,
   `ITAM.views.architecture()` draws the hosts by site with the networks they are
@@ -158,7 +159,7 @@ library's own; a space that restricts what pages may call (an allowlist) needs
 Every section is always shown; an empty one says *none*. Lists are sorted by
 `type`, in the order of the type list, then by name. Tables are built as
 Markdown; a view with a diagram converts its tables to HTML and joins
-everything into one block.
+everything into one block, each section and diagram in its own `div`.
 
 ### the rules the schemas enforce
 
@@ -939,9 +940,10 @@ end
 -----------------------------------------------------------------------
 -- ITAM.backup.summary(start, rows, pages)
 --
--- Copies in the chain (the original included), and how many sit at
--- another site. `rows` and `pages` are optional, to reuse a chain or
--- the component pages.
+-- Copies in the chain (the original included), and how many are
+-- offsite: at another site than the original, or on a host of type
+-- external, the original itself included. `rows` and `pages` are
+-- optional, to reuse a chain or the component pages.
 -----------------------------------------------------------------------
 function ITAM.backup.summary(start, rows, pages)
 	rows = rows or ITAM.backup.chain(start)
@@ -953,7 +955,7 @@ function ITAM.backup.summary(start, rows, pages)
 		counted[name] = true
 		for _, site in ipairs(sitesOf(name, pages)) do
 			copies = copies + 1
-			if site ~= home then offsite = offsite + 1 end
+			if site == "external" or site ~= home then offsite = offsite + 1 end
 		end
 	end
 	count(start)
@@ -1131,7 +1133,9 @@ end
 --
 -- Sections are Markdown strings, diagrams are widgets. Without a
 -- diagram the result is one Markdown block; with one, everything
--- becomes one HTML block.
+-- becomes one HTML block, each part in its own div: markdownToHtml
+-- renders a paragraph as an inline span, so the parts would otherwise
+-- flow into each other and around the diagrams.
 -----------------------------------------------------------------------
 local function compose(parts)
 	local hasDiagram = false
@@ -1143,12 +1147,14 @@ local function compose(parts)
 	end
 	local html, events = {}, nil
 	for _, part in ipairs(parts) do
+		local body
 		if type(part) == "string" then
-			table.insert(html, markdown.markdownToHtml(part))
+			body = markdown.markdownToHtml(part)
 		else
-			table.insert(html, part.html)
+			body = part.html
 			events = events or part.events
 		end
+		table.insert(html, '<div style="margin-bottom: 1em">' .. body .. "</div>")
 	end
 	return widget.new { html = table.concat(html), display = "block", events = events }
 end
@@ -1422,7 +1428,7 @@ local function storageView(name)
 	local parts = {}
 	addDiagram(parts, "Stack", ITAM.views.stack(name))
 	table.insert(parts, section(
-		"Backup chain: " .. summary.copies .. " copies, " .. summary.offsite .. " offsite",
+		"Backup chain: " .. summary.copies .. ((summary.copies == 1) and " copy, " or " copies, ") .. summary.offsite .. " offsite",
 		{ "level", "from", "job", "tool", "schedule", "to" }, rows))
 	addDiagram(parts, "Backup diagram", (#chain > 0) and ITAM.backup.diagram(name, chain, pages) or nil)
 	return parts
@@ -1725,7 +1731,7 @@ function ITAM.views.drDueForReview(days)
 		if ra ~= rb then return ra < rb end
 		return (a.id or 0) < (b.id or 0)
 	end)
-	return widget.markdownBlock(ITAM.views.section("Due for review (older than " .. days .. " days)",
+	return widget.markdownBlock(ITAM.views.section("Due for review (older than " .. days .. ((days == 1) and " day)" or " days)"),
 		{ "decision", "id", "owner", "last reviewed" },
 		ITAM.views.pageRows(due, { "id", "owner", "lastReviewed" })))
 end

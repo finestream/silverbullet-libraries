@@ -176,7 +176,7 @@ function ITAM.views.drDueForReview(days)
 		if ra ~= rb then return ra < rb end
 		return (a.id or 0) < (b.id or 0)
 	end)
-	return widget.markdownBlock(ITAM.views.section("Due for review (older than " .. days .. " days)",
+	return widget.markdownBlock(ITAM.views.section("Due for review (older than " .. days .. ((days == 1) and " day)" or " days)"),
 		{ "decision", "id", "owner", "last reviewed" },
 		ITAM.views.pageRows(due, { "id", "owner", "lastReviewed" })))
 end
