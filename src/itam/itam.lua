@@ -1,7 +1,7 @@
 -----------------------------------------------------------------------
 -- Package ITAM
 --
--- IT Asset Management: configuration, shared lists, helpers and tag
+-- ITAM (IT asset management): configuration, shared lists, helpers and tag
 -- schemas
 --
 -- One global, `ITAM` (configuration, lists, helpers, schemas), with

@@ -60,11 +60,12 @@ imagegallery_LUA := imagegallery.lua
 
 # decisions.lua uses the table helpers that views.lua exports as views.*, so
 # the order is itam, backup, views, decisions.
-itam_PAGE := IT Asset Management
+itam_PAGE := ITAM
 itam_DOCS := itam.md
 itam_LUA := itam.lua backup.lua views.lua decisions.lua
-itam_FILES := Templates/Decision.md Templates/Host.md Templates/Job.md \
-	Templates/Network.md Templates/Policy.md Templates/Service.md Templates/Storage.md
+itam_FILES := ITAM/Templates/Decision.md ITAM/Templates/Host.md ITAM/Templates/Job.md \
+	ITAM/Templates/Network.md ITAM/Templates/Policy.md ITAM/Templates/Service.md \
+	ITAM/Templates/Storage.md
 
 # Release/versioning
 RELEASE_MAJOR_FILE ?= RELEASE_MAJOR
@@ -318,10 +319,10 @@ help:
 	@printf "  IG_ROWS\tImageGallery default rows used in CONFIG.md\n"
 	@printf "  IG_WIDTH\tImageGallery default thumbnail width in CONFIG.md\n"
 	@printf "  IG_HEIGHT\tImageGallery default thumbnail height in CONFIG.md\n"
-	@printf "  ITAM_ROOT\tIT Asset Management page prefix used in CONFIG.md (default: Computer/)\n"
-	@printf "  ITAM_SITES\tIT Asset Management location values, comma separated\n"
-	@printf "  ITAM_AREAS\tIT Asset Management decision areas, comma separated\n"
-	@printf "  ITAM_DECIDERS\tIT Asset Management deciders and owner of a new decision\n"
+	@printf "  ITAM_ROOT\tITAM page prefix used in CONFIG.md (default: Computer/)\n"
+	@printf "  ITAM_SITES\tITAM location values, comma separated\n"
+	@printf "  ITAM_AREAS\tITAM decision areas, comma separated\n"
+	@printf "  ITAM_DECIDERS\tITAM deciders and owner of a new decision\n"
 	@printf "  OPEN_COMMAND\tCommand to open the default browser (default: open)\n"
 	@printf "  SB_IMAGE\tDocker image to run for SilverBullet\n"
 	@printf "  SB_CONTAINER\tName for the SilverBullet Docker container\n"
