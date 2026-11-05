@@ -1,6 +1,6 @@
 ---
 tags: meta/template/page
-description: A job (something that runs on a schedule or at boot) of the IT Asset Management library.
+description: A job (something that runs on a schedule or at boot) of the ITAM library.
 command: "ITAM: New Job"
 suggestedName: "${ITAM.pagePrefix()}Job/"
 confirmName: true

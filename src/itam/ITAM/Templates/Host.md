@@ -1,6 +1,6 @@
 ---
 tags: meta/template/page
-description: A host (a machine or device) of the IT Asset Management library.
+description: A host (a machine or device) of the ITAM library.
 command: "ITAM: New Host"
 suggestedName: "${ITAM.pagePrefix()}Host/"
 confirmName: true

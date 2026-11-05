@@ -1,7 +1,7 @@
 
-# IT Asset Management
+# ITAM
 
-Document a set-up as pages: hosts, services, networks, storage, policies, jobs
+IT asset management: document a set-up as pages: hosts, services, networks, storage, policies, jobs
 and the decisions behind them. One page per object, with its facts in the
 frontmatter; the library validates the frontmatter against a schema per kind,
 and every page ends with one call that shows what is derived from the other
@@ -181,7 +181,7 @@ Each page template adds one command that creates a page of its kind:
 
 ### page templates
 
-The templates are installed next to this page, under `Templates/`, and read
+The templates are installed next to this page, under `ITAM/Templates/`, and read
 `pagePrefix`, `sites`, `dr.areas`, `dr.deciders`, `dr.owner` and the type
 lists from the configuration, so a new page proposes the right folder and
 lists the allowed values as comments.
