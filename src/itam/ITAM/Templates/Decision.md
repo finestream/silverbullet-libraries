@@ -8,7 +8,7 @@ frontmatter: |
   tags: dr
   id:  # the next free number
   status: proposed
-  area:  # ${ITAM.hint("areas")}
+  area:  # one value or a list [a, b]: ${ITAM.hint("areas")}
   date: "${date.today()}"
   deciders: "${ITAM.drDefault("deciders")}"
   owner: "${ITAM.drDefault("owner")}"
