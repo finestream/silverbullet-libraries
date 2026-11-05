@@ -135,6 +135,7 @@ run `System: Reload`, then `Space: Reindex`.
 | `${ITAM.views.index("host")}` | the index page next to each kind's folder (`host`, `service`, `storage`, `network`, `policy`, `job`, `dr`) |
 | `${ITAM.views.copies()}` | the policy index: copies and offsite copies of every protected storage |
 | `${ITAM.views.architecture()}` | the entry page: hosts by site, with their networks |
+| `${ITAM.views.types()}` | any page: the allowed `type` values of every kind in this space, so a page need not copy them |
 | `${ITAM.views.decisions { area = "…", statuses = { "…" }, relations = { "dependsOn", "related", "supersedes" } }}` | a decision index: the decisions as a graph; every option is optional |
 | `${ITAM.views.drDueForReview(180)}` | a decision index: active decisions not reviewed for that many days (default: `reviewDays`) |
 | `${ITAM.views.drProvisional()}` | a decision index: the provisional decisions, longest unchanged first |
@@ -1370,6 +1371,20 @@ function ITAM.views.copies()
 	end
 	return widget.markdownBlock(section("Copies of each protected storage",
 		{ "storage", "copies", "offsite" }, copyRows(sortByName(protected), false)))
+end
+
+-----------------------------------------------------------------------
+-- ITAM.views.types()
+--
+-- The allowed `type` values of every kind in this space, in their
+-- configured order, read when the page is shown
+-----------------------------------------------------------------------
+function ITAM.views.types()
+	local rows = {}
+	for _, tagName in ipairs({ "host", "service", "network", "storage", "policy", "job" }) do
+		table.insert(rows, { kinds[tagName].title, tagName, ITAM.hint(tagName) })
+	end
+	return widget.markdownBlock(section("Allowed types", { "kind", "tag", "types" }, rows))
 end
 
 -----------------------------------------------------------------------
