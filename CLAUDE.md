@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this repo is
 
-A collection of [SilverBullet](https://silverbullet.md) libraries written in Space-Lua. A "library" here is **not** a plug/JS bundle: it is a single markdown page that a user installs into their SilverBullet space via the Library Manager, containing documentation plus one ` ```space-lua ` code block. Three libraries so far: `kanboard` (SilverBullet ↔ Kanboard task sync), `imagegallery` (paginated thumbnail grids of the images in a space) and `itam` (IT asset management: tag schemas, views and page templates for documenting a set-up as pages).
+A collection of [SilverBullet](https://silverbullet.md) libraries written in Space-Lua. A "library" here is **not** a plug/JS bundle: it is a single markdown page that a user installs into their SilverBullet space via the Library Manager, containing documentation plus one ` ```space-lua ` code block. Three libraries so far: `kanboard` (SilverBullet ↔ Kanboard task sync), `imagegallery` (paginated thumbnail grids of the images in a space) and `itam` (the page `ITAM`, IT asset management: tag schemas, views and page templates for documenting a set-up as pages).
 
 Users install from `REPO.md` (the repository index, consumed as a raw GitHub URL), which lists one `#meta/library/remote` block per library pointing at `releases/<Page>.md`.
 
@@ -106,7 +106,7 @@ Those bracketed attributes are what SilverBullet's indexer exposes, so all looku
 
 **Round trip.** `Kanboard: Send Task` (`Ctrl-Alt-a` / `Ctrl-Cmd-a` on mac) takes the task under the cursor, creates it in Kanboard, then *replaces the source line with a live query* (`Kanboard.queryTask`) that renders the cached copy — so after sending, the page no longer owns the task text. Project/swimlane come from page frontmatter (`kbProjectId`, `kbSwimlaneId`) falling back to config. `Kanboard: Sync Status` pushes locally-completed tasks back (close and/or move to the last column per `kbCloseDone`/`kbMoveDone`), and `Kanboard: Remove Cache` deletes all `KanboardManaged` pages after an `editor.confirm`.
 
-## IT Asset Management architecture
+## ITAM architecture
 
 **Nothing is stored.** Every view is computed from the index when a page is shown; the library writes nothing but the pages created from its templates.
 
@@ -114,7 +114,9 @@ Those bracketed attributes are what SilverBullet's indexer exposes, so all looku
 
 **Config** lives under the lowercase `itam` key, like `kanboard` and `imagegallery`, read with `config.get("itam", {})` and merged over `ITAM.defaults` by `ITAM.config()`; all of it is optional. No value of a particular space belongs in the code, the templates or `test/space/`. The schemas take the configured lists as enums when the library loads, and `validate` checks them again when a page is indexed, so a change to `CONFIG` needs `System: Reload`, then `Space: Reindex`. `make testspace` generates the section from the `ITAM_*` env vars, and `test/space/Computer/` holds a small made-up set-up with one page per kind.
 
-**Templates** are the files of `itam_FILES`, installed under `Library/Finestream/Templates/`. Their paths and allowed values come from `ITAM.pagePrefix()`, `ITAM.hint()` and `ITAM.drDefault()`. Their commands are `ITAM: New <Kind>`.
+**Templates** are the files of `itam_FILES`, installed under `Library/Finestream/ITAM/Templates/`. Their paths and allowed values come from `ITAM.pagePrefix()`, `ITAM.hint()` and `ITAM.drDefault()`. Their commands are `ITAM: New <Kind>`.
+
+**The page name** is `ITAM`. SilverBullet refuses an install with `Page already exists` when any page's path ends with the library's page name, ignoring case: `space.pageExists` uses `resolvePath` (`plug-api/lib/resolve_path.ts`), so `Agent/Library/finestream/IT Asset Management` blocked `Library/Finestream/IT Asset Management`. The same applies to every library. The templates sit in a folder named after the library, so that `releases/` and `Library/Finestream/` stay per library.
 
 **Tags** are set on the commit that holds the release files: `make release-<lib>` tags `HEAD`, which is the commit before them, so after the merge the tag is set again on the merge commit and only then pushed.
 

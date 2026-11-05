@@ -1,6 +1,6 @@
 ---
 tags: meta/template/page
-description: A network (a LAN, a VPN, the internet, a Docker network) of the IT Asset Management library.
+description: A network (a LAN, a VPN, the internet, a Docker network) of the ITAM library.
 command: "ITAM: New Network"
 suggestedName: "${ITAM.pagePrefix()}Network/"
 confirmName: true
