@@ -1,15 +1,15 @@
 ---
 author: finestream
-description: Document hosts, services, networks, storage, policies, jobs and decisions as pages, with tag schemas, generated views and diagrams, and page templates.
+description: IT asset management. Document hosts, services, networks, storage, policies, jobs and decisions as pages, with tag schemas, generated views and diagrams, and page templates.
 pageDecoration.prefix: "🗄️ "
-name: "Library/Finestream/IT Asset Management"
+name: "Library/Finestream/ITAM"
 tags: meta/library
 files:
-- Templates/Decision.md
-- Templates/Host.md
-- Templates/Job.md
-- Templates/Network.md
-- Templates/Policy.md
-- Templates/Service.md
-- Templates/Storage.md
+- ITAM/Templates/Decision.md
+- ITAM/Templates/Host.md
+- ITAM/Templates/Job.md
+- ITAM/Templates/Network.md
+- ITAM/Templates/Policy.md
+- ITAM/Templates/Service.md
+- ITAM/Templates/Storage.md
 ---
