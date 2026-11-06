@@ -77,7 +77,7 @@ config.set {
     pagePrefix = "Computer/",          -- where the templates create pages (default: the first root)
     sites = { "Home", "Office" },      -- allowed `location` values; {} allows any text
     providers = "Providers",           -- the group of the hosts of type external in the architecture diagram
-    types = {                          -- a list here replaces the default list of that kind
+    types = {                          -- a list here replaces the default list of that kind; {} allows any text
       host = { "server", "nas", "mac", "pc", "pi", "mobile", "appliance", "external", "unused" },
       job = {                          -- an entry is a name, or a table with a name and properties
         "backup", "snapshot", "sync",
