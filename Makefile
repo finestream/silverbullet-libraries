@@ -52,7 +52,7 @@ LIBRARIES := kanboard imagegallery itam
 
 kanboard_PAGE := Kanboard
 kanboard_DOCS := kanboard.md
-kanboard_LUA := library.lua kanboard.lua
+kanboard_LUA := library.lua kanboard.lua views.lua
 
 imagegallery_PAGE := ImageGallery
 imagegallery_DOCS := imagegallery.md
@@ -162,6 +162,10 @@ testspace: all
 		>> "$(TEST_TEST_DIR)/CONFIG.md"
 	@printf '      verbosity = %s, -- 0 silent, 1 errors, 2 +warnings, 3 +info, 4 +debug\n' \
 		"$(KB_VERBOSITY)" \
+		>> "$(TEST_TEST_DIR)/CONFIG.md"
+	@printf '%s\n' '      taskTable = { -- the task table, Kanboard.views.tasks' \
+		'          open = "⭕️", done = "🟢", boxSize = "1.8em", emptyAttribute = "🚫",' \
+		'      },' \
 		>> "$(TEST_TEST_DIR)/CONFIG.md"
 	@printf '%s\n' '  },' >> "$(TEST_TEST_DIR)/CONFIG.md"
 	@printf '%s\n' '  imagegallery = {' >> "$(TEST_TEST_DIR)/CONFIG.md"
