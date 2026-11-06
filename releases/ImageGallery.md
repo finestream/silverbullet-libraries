@@ -348,11 +348,22 @@ end
 -- Builds the URL a document of the space is served at.
 --
 -- The ".fs" endpoint and the escaping of colons match what the editor
--- itself uses to render image transclusions. The URL is relative to the
--- space root, which the client publishes as the document base URL.
+-- itself uses to render image transclusions. The characters that would
+-- otherwise change the meaning of the URL (percent, number sign, question
+-- mark, space) are escaped as well, so that a file name such as "a#b?.png"
+-- addresses that file. The URL is relative to the space root, which the
+-- client publishes as the document base URL.
+--
+-- Each substitution is a separate statement: gsub returns two values, and
+-- Space Lua cannot call a method on a multi-value result.
 -----------------------------------------------------------------------
 function ImageGallery.documentUrl(path)
-	return ".fs/" .. (path:gsub(":", "%%3A"))
+	local url = path:gsub("%%", "%%25")
+	url = url:gsub("#", "%%23")
+	url = url:gsub("%?", "%%3F")
+	url = url:gsub(" ", "%%20")
+	url = url:gsub(":", "%%3A")
+	return ".fs/" .. url
 end
 
 -----------------------------------------------------------------------
