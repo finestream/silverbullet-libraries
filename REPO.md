@@ -24,3 +24,10 @@ website: https://github.com/finestream/silverbullet-libraries/blob/main/releases
 description: "Document hosts, services, networks, storage, policies, jobs and decisions as pages: tag schemas, generated views and diagrams, page templates (see releases/ for published builds)"
 ---
 ```
+```#meta/library/remote
+name: "Utilities"
+uri: https://github.com/finestream/silverbullet-libraries/blob/main/releases/Utilities.md
+website: https://github.com/finestream/silverbullet-libraries/blob/main/releases/Utilities.md
+description: "Space-wide views: a tag cloud and a health table of what needs attention, with a detail page per check (see releases/ for published builds)"
+---
+```
