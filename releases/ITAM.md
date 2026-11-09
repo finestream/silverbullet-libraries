@@ -190,7 +190,20 @@ default:
 * a table `{ values = { … }, optional = true }`: as the list, and the field may
   be left out;
 * `false`: the kind has no `status`. The schema does not know the field, the
-  template has no such line and the index table no such column.
+  template leaves an empty line where it would be, and the index table has no
+  such column.
+
+A space that documented its set-up with a release before 0.8.0 keeps the
+former values with:
+
+```lua
+statuses = {
+  host = { "active", "on-demand", "parked", "free" },
+  service = { "active", "on-demand", "parked" },
+  storage = { "active", "spare", "retired" },
+  network = false, policy = false, job = false,
+},
+```
 
 `dr.statuses` is the lifecycle: the values in their order, the first being
 what `ITAM: New Decision` sets. An entry is a name, or a table with a name and
@@ -215,7 +228,8 @@ first configured value of its kind and the allowed values as a comment.
 ### when the configuration is read
 
 The library reads `types`, `statuses` and `dr.statuses`, builds the schemas
-and sets the `dr` tag page when it loads. It carries `-- priority: -10`
+and sets the `dr` tag page when it loads; `validate` checks `status` against
+the same values. It carries `-- priority: -10`
 ([load order](https://silverbullet.md/Space%20Lua)), so it loads after every
 script without a priority, whatever page your `config.set` is on. A
 `config.set` with a priority below -10 comes too late. After a change to
@@ -310,7 +324,7 @@ The templates are installed next to this page, under `ITAM/Templates/`, and read
 `pagePrefix`, `sites`, `dr.areas`, `dr.deciders`, `dr.owner`, the type lists
 and the status values from the configuration, so a new page proposes the right
 folder and lists the allowed values as comments. The `status` line carries the
-first configured value of the kind; a kind without `status` gets no such line.
+first configured value of the kind; for a kind without `status` it is empty.
 
 ### notes
 
@@ -356,6 +370,9 @@ ITAM = {}
 -- needs them; a page never does.
 -----------------------------------------------------------------------
 
+-- The default `status` lifecycle of every component kind (ITAM.defaults.statuses)
+local componentStatuses = { "planned", "implementation", "active", "on-demand", "spare", "retired" }
+
 ITAM.defaults = {
 	-- Page prefixes under which the objects live; the views consider these pages only
 	roots = { "Computer/" },
@@ -375,12 +392,12 @@ ITAM.defaults = {
 	-- any text. A kind left out keeps its default: one lifecycle for every
 	-- component.
 	statuses = {
-		host    = { "planned", "implementation", "active", "on-demand", "spare", "retired" },
-		service = { "planned", "implementation", "active", "on-demand", "spare", "retired" },
-		storage = { "planned", "implementation", "active", "on-demand", "spare", "retired" },
-		network = { "planned", "implementation", "active", "on-demand", "spare", "retired" },
-		policy  = { "planned", "implementation", "active", "on-demand", "spare", "retired" },
-		job     = { "planned", "implementation", "active", "on-demand", "spare", "retired" },
+		host    = componentStatuses,
+		service = componentStatuses,
+		storage = componentStatuses,
+		network = componentStatuses,
+		policy  = componentStatuses,
+		job     = componentStatuses,
 	},
 	-- Decision records
 	dr = {
@@ -435,14 +452,17 @@ end
 --
 -- A list from config.get is a JS array, and `entries.values` on it is
 -- the array's method, not nil: the table form is recognised only when
--- the entry has no first element and `values` is a table or
--- `optional` a boolean.
+-- the entry has no first element and `values` is set to something
+-- other than a function (a list or a single value), or `optional` is
+-- a boolean.
 -----------------------------------------------------------------------
 local function statusSpec(entries)
 	if entries == nil or entries == false then return nil end
 	if type(entries) ~= "table" then return { values = listOf(entries), optional = false } end
-	if entries[1] == nil and (type(entries.values) == "table" or type(entries.optional) == "boolean") then
-		return { values = listOf(entries.values), optional = entries.optional == true }
+	local values = entries.values
+	if type(values) == "function" then values = nil end
+	if entries[1] == nil and (values ~= nil or type(entries.optional) == "boolean") then
+		return { values = listOf(values), optional = entries.optional == true }
 	end
 	return { values = listOf(entries), optional = false }
 end
@@ -531,19 +551,22 @@ ITAM.types = {
 	auth    = { "keycloak", "forward-auth", "own", "none", "n/a" },
 }
 -----------------------------------------------------------------------
--- definitionsOf(kind, entries)
+-- definitionsOf(defaultEntries, entries)
 --
--- The entries of a kind as definitions, in their order. An entry named
--- like a default starts from that default's properties, so a space
--- that lists "backup" as a name keeps what a backup is. A table without
--- a name defines nothing.
+-- The configured `entries` (or the defaults when nil) as definitions,
+-- in their order: a name, or a table with a name and properties. An
+-- entry named like a default starts from that default's properties,
+-- so a space that lists "backup" as a name keeps what a backup is, and
+-- "provisional" keeps its dot. A table without a name defines nothing.
+-- Shared by the types (ITAM.types[kind]) and the decision lifecycle
+-- (ITAM.defaults.dr.statuses).
 -----------------------------------------------------------------------
-local function definitionsOf(kind, entries)
+local function definitionsOf(defaultEntries, entries)
 	local defaults, definitions = {}, {}
-	for _, entry in ipairs(ITAM.types[kind]) do
+	for _, entry in ipairs(defaultEntries) do
 		if type(entry) == "table" then defaults[entry.name] = entry end
 	end
-	for _, entry in ipairs(entries or ITAM.types[kind]) do
+	for _, entry in ipairs(entries or defaultEntries) do
 		local isTable = type(entry) == "table"
 		local name = entry
 		if isTable then name = entry.name end
@@ -571,7 +594,7 @@ local function buildTypes()
 	local configured = ITAM.config().types
 	local built = {}
 	for kind, _ in pairs(ITAM.types) do
-		local definitions = definitionsOf(kind, configured[kind])
+		local definitions = definitionsOf(ITAM.types[kind], configured[kind])
 		built[kind] = { names = {}, byName = {} }
 		for _, definition in ipairs(definitions) do
 			table.insert(built[kind].names, definition.name)
@@ -589,6 +612,10 @@ local function buildTypes()
 end
 
 local builtTypes = buildTypes()
+
+-- The `status` specs of this space per kind, read when the library
+-- loads, as the types are (ITAM.statusOf)
+local builtStatuses = ITAM.config().statuses
 
 -----------------------------------------------------------------------
 -- ITAM.typesOf(kind)
@@ -618,25 +645,13 @@ end
 --
 -- The lifecycle of a decision in this space: `names` in their order
 -- and `byName` with the properties of each (`dot`, `active`,
--- `provisional`). An entry named like a default starts from that
--- default's properties, as the types do.
+-- `provisional`), merged with the defaults by definitionsOf.
 -----------------------------------------------------------------------
 local function buildDrStatuses()
-	local defaults, names, byName = {}, {}, {}
-	for _, entry in ipairs(ITAM.defaults.dr.statuses) do defaults[entry.name] = entry end
-	for _, entry in ipairs(ITAM.config().dr.statuses) do
-		local isTable = type(entry) == "table"
-		local name = entry
-		if isTable then name = entry.name end
-		if name then
-			local definition = { name = name }
-			for key, value in pairs(defaults[name] or {}) do definition[key] = value end
-			if isTable then
-				for key, value in pairs(entry) do definition[key] = value end
-			end
-			table.insert(names, name)
-			byName[name] = definition
-		end
+	local names, byName = {}, {}
+	for _, definition in ipairs(definitionsOf(ITAM.defaults.dr.statuses, ITAM.config().dr.statuses)) do
+		table.insert(names, definition.name)
+		byName[definition.name] = definition
 	end
 	return names, byName
 end
@@ -677,28 +692,29 @@ end
 -- `values` the allowed values in their order (empty: any text), the
 -- first of them what a new page gets; `optional` whether the field may
 -- be left out. nil for a kind without `status`. "dr" answers with the
--- lifecycle of a decision.
+-- lifecycle of a decision. Read when the library loads, as the types
+-- are: a change to CONFIG needs System: Reload.
 -----------------------------------------------------------------------
 function ITAM.statusOf(kind)
 	if kind == "dr" then return { values = ITAM.drStatuses, optional = false } end
-	return ITAM.config().statuses[kind]
+	return builtStatuses[kind]
 end
 
 -----------------------------------------------------------------------
--- ITAM.statusLine(kind, note)
+-- ITAM.statusLine(kind)
 --
 -- The `status` line of a page template, with the allowed values as a
--- comment: "status: planned  # planned, implementation, active, … (note)";
+-- comment: "status: planned  # planned, implementation, active, …";
 -- "status:  # free text" for a kind that allows any text; "" for a
--- kind without `status`, so that the template has no such line.
+-- kind without `status`, so that the template keeps an empty line in
+-- its place.
 -----------------------------------------------------------------------
-function ITAM.statusLine(kind, note)
+function ITAM.statusLine(kind)
 	local spec = ITAM.statusOf(kind)
 	if not spec then return "" end
 	local hint = "free text"
 	if #spec.values > 0 then hint = table.concat(spec.values, ", ") end
 	if spec.optional then hint = hint .. "; may be left out" end
-	if note then hint = hint .. " (" .. note .. ")" end
 	local value = ""
 	if spec.values[1] then value = " " .. spec.values[1] end
 	return "status:" .. value .. "  # " .. hint

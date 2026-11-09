@@ -172,7 +172,20 @@ default:
 * a table `{ values = { … }, optional = true }`: as the list, and the field may
   be left out;
 * `false`: the kind has no `status`. The schema does not know the field, the
-  template has no such line and the index table no such column.
+  template leaves an empty line where it would be, and the index table has no
+  such column.
+
+A space that documented its set-up with a release before 0.8.0 keeps the
+former values with:
+
+```lua
+statuses = {
+  host = { "active", "on-demand", "parked", "free" },
+  service = { "active", "on-demand", "parked" },
+  storage = { "active", "spare", "retired" },
+  network = false, policy = false, job = false,
+},
+```
 
 `dr.statuses` is the lifecycle: the values in their order, the first being
 what `ITAM: New Decision` sets. An entry is a name, or a table with a name and
@@ -197,7 +210,8 @@ first configured value of its kind and the allowed values as a comment.
 ### when the configuration is read
 
 The library reads `types`, `statuses` and `dr.statuses`, builds the schemas
-and sets the `dr` tag page when it loads. It carries `-- priority: -10`
+and sets the `dr` tag page when it loads; `validate` checks `status` against
+the same values. It carries `-- priority: -10`
 ([load order](https://silverbullet.md/Space%20Lua)), so it loads after every
 script without a priority, whatever page your `config.set` is on. A
 `config.set` with a priority below -10 comes too late. After a change to
@@ -292,7 +306,7 @@ The templates are installed next to this page, under `ITAM/Templates/`, and read
 `pagePrefix`, `sites`, `dr.areas`, `dr.deciders`, `dr.owner`, the type lists
 and the status values from the configuration, so a new page proposes the right
 folder and lists the allowed values as comments. The `status` line carries the
-first configured value of the kind; a kind without `status` gets no such line.
+first configured value of the kind; for a kind without `status` it is empty.
 
 ### notes
 
