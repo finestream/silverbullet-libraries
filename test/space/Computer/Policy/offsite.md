@@ -10,6 +10,7 @@ retentionLocal: 30 days
 retentionOffsite: 1 year
 decision:
 - "[[Computer/Decision/001 One copy offsite]]"
+status: active
 lastReviewed: "2026-01-15"
 ---
 # offsite

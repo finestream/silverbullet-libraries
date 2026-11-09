@@ -14,7 +14,7 @@ frontmatter: |
   policies:  # at least one; a "no backup" policy when nothing protects it
   path:
   capacity:  # for disks and volumes
-  status: active  # active, spare, retired
+  ${ITAM.statusLine("storage")}
   lastReviewed: "${date.today()}"
 ---
 |^|

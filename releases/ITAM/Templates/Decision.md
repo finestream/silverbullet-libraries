@@ -7,7 +7,7 @@ confirmName: true
 frontmatter: |
   tags: dr
   id:  # the next free number
-  status: proposed
+  ${ITAM.statusLine("dr")}
   area:  # one value or a list [a, b]: ${ITAM.hint("areas")}
   date: "${date.today()}"
   deciders: "${ITAM.drDefault("deciders")}"

@@ -53,11 +53,16 @@ shown. The library writes nothing but the pages you create from its templates.
   kind, `ITAM.views.copies()` the copies of every protected storage,
   `ITAM.views.architecture()` draws the hosts by site with the networks they are
   on, `ITAM.views.decisions {…}` draws the decisions as a graph.
-* *Decision records* the tag `dr` after the ADR pattern: `status`
-  (`proposed` → `provisional` → `accepted`, then `superseded` or `deprecated`;
-  `rejected` is a dead end), `area` (one value or a list), `deciders`, `owner`, `lastReviewed`,
-  `supersedes`, `dependsOn`, `related`. Two views list what needs attention:
+* *Decision records* the tag `dr` after the ADR pattern: `status` (a
+  lifecycle, by default `proposed` → `provisional` → `accepted`, then
+  `superseded` or `deprecated`; `rejected` is a dead end), `area` (one value or
+  a list), `deciders`, `owner`, `lastReviewed`, `supersedes`, `dependsOn`,
+  `related`. Two views list what needs attention:
   `ITAM.views.drDueForReview()` and `ITAM.views.drProvisional()`.
+* *Status values are configuration* which `status` values an object of each
+  kind may carry, whether it must carry one, and the lifecycle of a decision
+  (the values, the dot of each, which count as active or provisional) are set
+  in `CONFIG`; the schemas, the templates and the views read them from there.
 * *Page templates* one command per kind (`ITAM: New Host`, `ITAM: New Service`,
   `ITAM: New Storage`, `ITAM: New Network`, `ITAM: New Policy`, `ITAM: New Job`, `ITAM: New Decision`)
   creates a page with the right fields, the allowed values as comments, and
@@ -84,8 +89,8 @@ shown. The library writes nothing but the pages you create from its templates.
 ## Configuration
 
 Configuration is optional: without it, the objects are expected under
-`Computer/`, any `location` and `area` is accepted, and the default type
-lists apply. To adapt the library to your space, add the following section
+`Computer/`, any `location` and `area` is accepted, and the default type and
+status lists apply. To adapt the library to your space, add the following section
 to your `CONFIG` page in a space-lua block; every key may be left out:
 
 ```lua
@@ -103,12 +108,22 @@ config.set {
         "update", "test", "scrub", "script",
       },
     },
+    statuses = {                       -- allowed `status` values per kind; a kind left out keeps its default
+      host = { "active", "on-demand", "spare" }, -- a list: `status` is required and one of these
+      job = { values = { "active", "retired" }, optional = true }, -- `status` may be left out
+      network = false,                 -- no `status` field
+      policy = {},                     -- `status` is required, any text
+    },
     dr = {
       tagPage = "Computer/Decision",   -- the page the `dr` tag opens
       areas = { "infrastructure", "knowledge" }, -- allowed `area` values, one or a list per decision; {} allows any text
       deciders = "@me",                -- `deciders` of a new decision
       owner = "@me",                   -- `owner` of a new decision
       reviewDays = 180,                -- a decision is due for review this many days after lastReviewed
+      statuses = {                     -- the lifecycle, in order; an entry is a name, or a table with a name and properties
+        { name = "draft", dot = "⚫", active = true },
+        "proposed", "provisional", "accepted", "superseded", "deprecated", "rejected",
+      },
     },
   }
 }
@@ -151,10 +166,56 @@ An entry named like a default keeps that default's properties, so listing
 sets. **A new name given as plain text is not a copy job:** a new copy job needs
 `copy = true`.
 
+### status values
+
+Which `status` values a page may carry is configuration, per kind, under
+`statuses`; the lifecycle of a decision is `dr.statuses`. These are the
+defaults:
+
+| Kind | `status` | Values |
+| --- | --- | --- |
+| `host`, `service`, `storage`, `network`, `policy`, `job` | required | `planned`, `implementation`, `active`, `on-demand`, `spare`, `retired` |
+| `dr` | required | `proposed`, `provisional`, `accepted`, `superseded`, `deprecated`, `rejected` |
+
+Every component shares one lifecycle: `planned` (decided, not yet started),
+`implementation` (being set up), `active` (in use), `on-demand` (in service,
+started only when needed), `spare` (on hand, not in use), `retired` (gone,
+kept for the record).
+
+A kind under `statuses` takes one of three forms; a kind left out keeps its
+default:
+
+* a list of values: `status` is required and must be one of them; `{}` makes
+  it required but any text;
+* a table `{ values = { … }, optional = true }`: as the list, and the field may
+  be left out;
+* `false`: the kind has no `status`. The schema does not know the field, the
+  template has no such line and the index table no such column.
+
+`dr.statuses` is the lifecycle: the values in their order, the first being
+what `ITAM: New Decision` sets. An entry is a name, or a table with a name and
+properties:
+
+| Property | Meaning |
+| --- | --- |
+| `dot` | the decoration of the page and the marker in the graph; a value without a dot shows 📐, as an unknown value does |
+| `active` | the decision is in force or on its way there: `ITAM.views.drDueForReview()` lists it when its review is due |
+| `provisional` | binding but still edited in place: `ITAM.views.drProvisional()` lists it |
+
+By default `proposed`, `provisional` and `accepted` are active and
+`provisional` is provisional. An entry named like a default keeps that
+default's properties, so listing `"proposed"` as a name is enough, and a table
+changes only the properties it sets; a new name given as plain text has no dot
+and no property. An empty list allows any text, with no dots and nothing
+active.
+
+The templates and the first value: the `status` line of a new page carries the
+first configured value of its kind and the allowed values as a comment.
+
 ### when the configuration is read
 
-The library reads `types`, builds the schemas and sets the `dr` tag page when
-it loads. It carries `-- priority: -10`
+The library reads `types`, `statuses` and `dr.statuses`, builds the schemas
+and sets the `dr` tag page when it loads. It carries `-- priority: -10`
 ([load order](https://silverbullet.md/Space%20Lua)), so it loads after every
 script without a priority, whatever page your `config.set` is on. A
 `config.set` with a priority below -10 comes too late. After a change to
@@ -210,6 +271,9 @@ everything into one block, each section and diagram in its own `div`.
   of areas, one of `dr.areas`, when those lists are configured.
 * `type` and `auth` must be in the list of their kind. A service's `type` may
   be a list when it runs differently per host.
+* `status` must be one of the values configured for the kind (`statuses`,
+  `dr.statuses`), and is required unless the kind's entry says `optional`. A
+  kind without `status` does not check the field.
 * A `domain` is an extra tag on a service of type `external`: `registered`
   and `renewal` are dates (`YYYY-MM-DD`), `mail` says who handles mail for it.
 
@@ -222,7 +286,11 @@ everything on it), `ITAM.views.stack(name)` (the storage layers around a storage
 `ITAM.backup.diagram(name)`, and the helpers in `ITAM` (`ITAM.list`, `ITAM.link`,
 `ITAM.unlink`, `ITAM.short`, `ITAM.pages(tag)`, `ITAM.page(name)`,
 `ITAM.byName(tag)`, `ITAM.copies(job)`, `ITAM.typesOf(kind)`,
-`ITAM.definitionOf(kind, name)`, `ITAM.flowchart()`).
+`ITAM.definitionOf(kind, name)`, `ITAM.statusOf(kind)` (the `status` field of a
+kind as `{ values, optional }`, `nil` for a kind without one; `"dr"` answers with
+the lifecycle), `ITAM.drStatuses`, `ITAM.drDots`, `ITAM.drActive`,
+`ITAM.drStatusOf(name)` (one value of the lifecycle with its properties),
+`ITAM.flowchart()`).
 
 ### commands
 
@@ -239,9 +307,10 @@ Each page template adds one command that creates a page of its kind:
 ### page templates
 
 The templates are installed next to this page, under `ITAM/Templates/`, and read
-`pagePrefix`, `sites`, `dr.areas`, `dr.deciders`, `dr.owner` and the type
-lists from the configuration, so a new page proposes the right folder and
-lists the allowed values as comments.
+`pagePrefix`, `sites`, `dr.areas`, `dr.deciders`, `dr.owner`, the type lists
+and the status values from the configuration, so a new page proposes the right
+folder and lists the allowed values as comments. The `status` line carries the
+first configured value of the kind; a kind without `status` gets no such line.
 
 ### notes
 
@@ -299,6 +368,20 @@ ITAM.defaults = {
 	-- Per kind (host, service, storage, network, policy, job, auth), a list of
 	-- definitions that replaces the default list of ITAM.types
 	types = {},
+	-- Per kind (host, service, storage, network, policy, job), the allowed
+	-- `status` values: a list (the field is required and takes one of them),
+	-- a table { values = {…}, optional = true } (the field may be left out),
+	-- or false (the kind has no `status`); an empty list of values allows
+	-- any text. A kind left out keeps its default: one lifecycle for every
+	-- component.
+	statuses = {
+		host    = { "planned", "implementation", "active", "on-demand", "spare", "retired" },
+		service = { "planned", "implementation", "active", "on-demand", "spare", "retired" },
+		storage = { "planned", "implementation", "active", "on-demand", "spare", "retired" },
+		network = { "planned", "implementation", "active", "on-demand", "spare", "retired" },
+		policy  = { "planned", "implementation", "active", "on-demand", "spare", "retired" },
+		job     = { "planned", "implementation", "active", "on-demand", "spare", "retired" },
+	},
 	-- Decision records
 	dr = {
 		tagPage = nil,      -- the page the `dr` tag opens, e.g. the index of the decisions
@@ -306,6 +389,22 @@ ITAM.defaults = {
 		deciders = "",      -- `deciders` of a new decision, e.g. "@me"
 		owner = "",         -- `owner` of a new decision
 		reviewDays = 180,   -- days after `lastReviewed` until a decision is due for review
+		-- The lifecycle: the `status` values of a decision in their order; the
+		-- first is what a new decision gets. An entry is a name, or a table
+		-- with a name and properties: `dot` (the page decoration and the
+		-- marker in the graph), `active` (the decision is in force or on its
+		-- way there, so it is due for review), `provisional` (binding but
+		-- still edited, listed by drProvisional). An entry named like a
+		-- default keeps that default's properties. An empty list allows any
+		-- text.
+		statuses = {
+			{ name = "proposed",    dot = "🟡", active = true },
+			{ name = "provisional", dot = "🔵", active = true, provisional = true },
+			{ name = "accepted",    dot = "🟢", active = true },
+			{ name = "superseded",  dot = "⚪" },
+			{ name = "deprecated",  dot = "🟠" },
+			{ name = "rejected",    dot = "🔴" },
+		},
 	},
 }
 
@@ -328,29 +427,56 @@ local function listOf(value)
 end
 
 -----------------------------------------------------------------------
+-- statusSpec(entries)
+--
+-- A configured `statuses.<kind>` entry as { values, optional }: a list
+-- of values, a table with `values` and `optional`, or false / nil for
+-- a kind without `status` (-> nil). `values` is always a Lua list.
+--
+-- A list from config.get is a JS array, and `entries.values` on it is
+-- the array's method, not nil: the table form is recognised only when
+-- the entry has no first element and `values` is a table or
+-- `optional` a boolean.
+-----------------------------------------------------------------------
+local function statusSpec(entries)
+	if entries == nil or entries == false then return nil end
+	if type(entries) ~= "table" then return { values = listOf(entries), optional = false } end
+	if entries[1] == nil and (type(entries.values) == "table" or type(entries.optional) == "boolean") then
+		return { values = listOf(entries.values), optional = entries.optional == true }
+	end
+	return { values = listOf(entries), optional = false }
+end
+
+-----------------------------------------------------------------------
 -- ITAM.config()
 --
--- The configuration of this space merged over the defaults (`dr` one
--- level deep). Every list (`roots`, `sites`, `types.<kind>`,
--- `dr.areas`) comes back as a Lua list, also when the space left it
--- empty, so the callers may take its length.
+-- The configuration of this space merged over the defaults (`statuses`
+-- per kind, `dr` one level deep). Every list (`roots`, `sites`,
+-- `types.<kind>`, `dr.areas`, `dr.statuses`) comes back as a Lua list,
+-- also when the space left it empty, so the callers may take its
+-- length; `statuses.<kind>` comes back as { values, optional }, or nil
+-- for a kind without `status`.
 -----------------------------------------------------------------------
 function ITAM.config()
 	local set = config.get("itam", {}) or {}
 	local cfg = {}
 	for key, value in pairs(ITAM.defaults) do cfg[key] = value end
 	for key, value in pairs(set) do
-		if key ~= "dr" then cfg[key] = value end
+		if key ~= "dr" and key ~= "statuses" then cfg[key] = value end
 	end
 	cfg.roots = listOf(cfg.roots)
 	cfg.sites = listOf(cfg.sites)
 	local types = {}
 	for kind, entries in pairs(cfg.types or {}) do types[kind] = listOf(entries) end
 	cfg.types = types
+	cfg.statuses = {}
+	for kind, entries in pairs(ITAM.defaults.statuses) do cfg.statuses[kind] = statusSpec(entries) end
+	for kind, entries in pairs(set.statuses or {}) do cfg.statuses[kind] = statusSpec(entries) end
 	cfg.dr = {}
 	for key, value in pairs(ITAM.defaults.dr) do cfg.dr[key] = value end
 	for key, value in pairs(set.dr or {}) do cfg.dr[key] = value end
 	cfg.dr.areas = listOf(cfg.dr.areas)
+	cfg.dr.statuses = listOf(cfg.dr.statuses)
 	return cfg
 end
 
@@ -485,6 +611,97 @@ end
 function ITAM.definitionOf(kind, name)
 	local built = builtTypes[kind]
 	return built and built.byName[name] or {}
+end
+
+-----------------------------------------------------------------------
+-- buildDrStatuses()
+--
+-- The lifecycle of a decision in this space: `names` in their order
+-- and `byName` with the properties of each (`dot`, `active`,
+-- `provisional`). An entry named like a default starts from that
+-- default's properties, as the types do.
+-----------------------------------------------------------------------
+local function buildDrStatuses()
+	local defaults, names, byName = {}, {}, {}
+	for _, entry in ipairs(ITAM.defaults.dr.statuses) do defaults[entry.name] = entry end
+	for _, entry in ipairs(ITAM.config().dr.statuses) do
+		local isTable = type(entry) == "table"
+		local name = entry
+		if isTable then name = entry.name end
+		if name then
+			local definition = { name = name }
+			for key, value in pairs(defaults[name] or {}) do definition[key] = value end
+			if isTable then
+				for key, value in pairs(entry) do definition[key] = value end
+			end
+			table.insert(names, name)
+			byName[name] = definition
+		end
+	end
+	return names, byName
+end
+
+local drStatusNames, drStatusByName = buildDrStatuses()
+
+-----------------------------------------------------------------------
+-- ITAM.drStatuses, ITAM.drDots, ITAM.drActive
+--
+-- The lifecycle of a decision as the views use it: the `status` values
+-- in their order, the dot of each value, and the values that count as
+-- active (due for review). Read when the library loads, as the schemas
+-- are.
+-----------------------------------------------------------------------
+ITAM.drStatuses = drStatusNames
+ITAM.drDots = {}
+ITAM.drActive = {}
+for _, name in ipairs(drStatusNames) do
+	local definition = drStatusByName[name]
+	if definition.dot then ITAM.drDots[name] = definition.dot end
+	if definition.active then ITAM.drActive[name] = true end
+end
+
+-----------------------------------------------------------------------
+-- ITAM.drStatusOf(name)
+--
+-- The definition of one `status` value of a decision, with its
+-- properties; an empty table for a value that is not defined
+-----------------------------------------------------------------------
+function ITAM.drStatusOf(name)
+	return drStatusByName[name] or {}
+end
+
+-----------------------------------------------------------------------
+-- ITAM.statusOf(kind)
+--
+-- The `status` field of a kind in this space, as { values, optional }:
+-- `values` the allowed values in their order (empty: any text), the
+-- first of them what a new page gets; `optional` whether the field may
+-- be left out. nil for a kind without `status`. "dr" answers with the
+-- lifecycle of a decision.
+-----------------------------------------------------------------------
+function ITAM.statusOf(kind)
+	if kind == "dr" then return { values = ITAM.drStatuses, optional = false } end
+	return ITAM.config().statuses[kind]
+end
+
+-----------------------------------------------------------------------
+-- ITAM.statusLine(kind, note)
+--
+-- The `status` line of a page template, with the allowed values as a
+-- comment: "status: planned  # planned, implementation, active, … (note)";
+-- "status:  # free text" for a kind that allows any text; "" for a
+-- kind without `status`, so that the template has no such line.
+-----------------------------------------------------------------------
+function ITAM.statusLine(kind, note)
+	local spec = ITAM.statusOf(kind)
+	if not spec then return "" end
+	local hint = "free text"
+	if #spec.values > 0 then hint = table.concat(spec.values, ", ") end
+	if spec.optional then hint = hint .. "; may be left out" end
+	if note then hint = hint .. " (" .. note .. ")" end
+	local value = ""
+	if spec.values[1] then value = " " .. spec.values[1] end
+	return "status:" .. value .. "  # " .. hint
 end
 
 -----------------------------------------------------------------------
@@ -706,8 +923,9 @@ end
 --
 -- One tag.define per object type. Each lists only its own fields;
 -- `object` adds the fields every object may carry (`decision`,
--- `lastReviewed`). The values of `type`, `auth`, `location` and `area`
--- come from the configuration, so the schema holds them as text and
+-- `lastReviewed`) and the `status` field of the kind, as configured.
+-- The values of `type`, `auth`, `status`, `location` and `area` come
+-- from the configuration, so the schema holds them as text and
 -- `validate` checks them when a page is indexed; the enum of a list
 -- that is known when this script loads is offered as well, for
 -- completion in the editor.
@@ -763,14 +981,24 @@ local function oneOrMore(values)
 end
 
 -----------------------------------------------------------------------
--- object(required, properties)
+-- object(kind, required, properties)
 --
 -- An object schema: its own fields, the fields every object may carry,
--- what is required
+-- the `status` field as configured for the kind (none, required or
+-- optional; an enum when the values are known), what is required
 -----------------------------------------------------------------------
-local function object(required, properties)
+local function object(kind, required, properties)
 	properties.decision     = links               -- governing decision(s)
 	properties.lastReviewed = text                -- YYYY-MM-DD
+	local status = ITAM.statusOf(kind)
+	if status then
+		if status.optional then
+			properties.status = nullableConfigured(status.values)
+		else
+			properties.status = configured(status.values)
+			table.insert(required, "status")
+		end
+	end
 	return { type = "object", properties = properties, required = required }
 end
 
@@ -810,6 +1038,26 @@ local function checkSite(value)
 end
 
 -----------------------------------------------------------------------
+-- checkStatus(kind, value)
+--
+-- "status must be one of …", "A <kind> needs a status", or nil when
+-- `value` is allowed for `kind` in this space (any value for a kind
+-- without `status`: the field is then free, like any other unknown
+-- key).
+-----------------------------------------------------------------------
+local function checkStatus(kind, value)
+	local status = ITAM.statusOf(kind)
+	if not status then return nil end
+	if value == nil then
+		if not status.optional then return "A " .. kind .. " needs a status" end
+		return nil
+	end
+	if not ITAM.oneOf(value, status.values) then
+		return "status must be one of " .. table.concat(status.values, ", ")
+	end
+end
+
+-----------------------------------------------------------------------
 -- Tag component
 --
 -- Component: carried by every object page next to its own tag, so that
@@ -828,17 +1076,16 @@ tag.define {
 -----------------------------------------------------------------------
 tag.define {
 	name = "host",
-	schema = object({ "type", "network", "status" }, {
+	schema = object("host", { "type", "network" }, {
 		type     = configured(ITAM.typesOf("host")),
 		role     = text,
 		location = nullableConfigured(ITAM.config().sites), -- every host except external
 		network  = links,
 		platform = text,                            -- OS and hardware
 		lanIp    = schema.nullableArray("string"),  -- fixed or reserved addresses
-		status   = oneOf { "active", "on-demand", "parked", "free" },
 	}),
 	validate = function(o)
-		local bad = checkType("host", o.type) or checkSite(o.location)
+		local bad = checkType("host", o.type) or checkStatus("host", o.status) or checkSite(o.location)
 		if bad then return bad end
 		if o.type ~= "external" and not o.location then return "A host needs a location" end
 		if o.type == "unused" then
@@ -861,7 +1108,7 @@ tag.define {
 -----------------------------------------------------------------------
 tag.define {
 	name = "service",
-	schema = object({ "type", "partOf", "purpose", "auth", "status" }, {
+	schema = object("service", { "type", "partOf", "purpose", "auth" }, {
 		type       = oneOrMore(ITAM.typesOf("service")), -- a list when it runs differently per host
 		partOf     = linkOrLinks,                   -- the host, or a list of hosts
 		purpose    = text,
@@ -873,10 +1120,9 @@ tag.define {
 		exposedVia = links,                         -- the reverse proxy
 		authVia    = links,                         -- the login service
 		dependsOn  = links,
-		status     = oneOf { "active", "on-demand", "parked" },
 	}),
 	validate = function(o)
-		local bad = checkType("service", o.type)
+		local bad = checkType("service", o.type) or checkStatus("service", o.status)
 		if bad then return bad end
 		if not ITAM.oneOf(o.auth, ITAM.typesOf("auth")) then
 			return "auth must be one of " .. table.concat(ITAM.typesOf("auth"), ", ")
@@ -913,14 +1159,14 @@ tag.define {
 -----------------------------------------------------------------------
 tag.define {
 	name = "network",
-	schema = object({ "type" }, {
+	schema = object("network", { "type" }, {
 		type     = configured(ITAM.typesOf("network")),
 		partOf   = link,                            -- the host, for Docker networks
 		cidr     = text,
 		location = nullableConfigured(ITAM.config().sites), -- for type lan
 	}),
 	validate = function(o)
-		return checkType("network", o.type) or checkSite(o.location)
+		return checkType("network", o.type) or checkStatus("network", o.status) or checkSite(o.location)
 	end,
 	transform = icon("share-2"),
 }
@@ -933,7 +1179,7 @@ tag.define {
 -----------------------------------------------------------------------
 tag.define {
 	name = "storage",
-	schema = object({ "type", "status" }, {
+	schema = object("storage", { "type" }, {
 		type       = configured(ITAM.typesOf("storage")),
 		partOf     = linkOrLinks,                   -- the host, or a list for a replica
 		on         = links,                         -- the layer(s) below, one per host for a replica
@@ -955,10 +1201,9 @@ tag.define {
 		writeSpeed   = number,                      -- measured, MB/s
 		readSpeed    = number,                      -- measured, MB/s
 		inventoryId  = number,                      -- number on the label
-		status     = oneOf { "active", "spare", "retired" },
 	}),
 	validate = function(o)
-		local bad = checkType("storage", o.type) or checkSite(o.location)
+		local bad = checkType("storage", o.type) or checkStatus("storage", o.status) or checkSite(o.location)
 		if bad then return bad end
 		if not o.partOf and not o.location then
 			return "Storage that is part of no host needs a location"
@@ -974,7 +1219,7 @@ tag.define {
 -----------------------------------------------------------------------
 tag.define {
 	name = "policy",
-	schema = object({ "type" }, {
+	schema = object("policy", { "type" }, {
 		type               = configured(ITAM.typesOf("policy")),
 		copies             = number,              -- the original included
 		offsite            = flag,
@@ -984,7 +1229,7 @@ tag.define {
 		retentionOffsite   = text,
 	}),
 	validate = function(o)
-		return checkType("policy", o.type)
+		return checkType("policy", o.type) or checkStatus("policy", o.status)
 	end,
 	transform = icon("shield"),
 }
@@ -996,7 +1241,7 @@ tag.define {
 -----------------------------------------------------------------------
 tag.define {
 	name = "job",
-	schema = object({ "type", "partOf", "schedule" }, {
+	schema = object("job", { "type", "partOf", "schedule" }, {
 		type       = configured(ITAM.typesOf("job")),
 		partOf     = link,                          -- the host it runs on
 		tool       = text,
@@ -1008,7 +1253,7 @@ tag.define {
 		versions   = text,
 	}),
 	validate = function(o)
-		local bad = checkType("job", o.type)
+		local bad = checkType("job", o.type) or checkStatus("job", o.status)
 		if bad then return bad end
 		local definition = ITAM.definitionOf("job", o.type)
 		if definition.copy and not o.source then
@@ -1323,16 +1568,17 @@ ITAM.views.sortByName = sortByName
 -- kinds
 --
 -- Every kind: its title, and the fields its index page shows after
--- name and type
+-- name and type; `status` follows for a kind that has it in this
+-- space (ITAM.statusOf)
 -----------------------------------------------------------------------
 local kinds = {
-	host    = { title = "Hosts",     fields = { "role", "location", "status" } },
-	service = { title = "Services",  fields = { "partOf", "purpose", "status" } },
-	storage = { title = "Storage",   fields = { "partOf", "policies", "status" } },
+	host    = { title = "Hosts",     fields = { "role", "location" } },
+	service = { title = "Services",  fields = { "partOf", "purpose" } },
+	storage = { title = "Storage",   fields = { "partOf", "policies" } },
 	network = { title = "Networks",  fields = { "partOf", "cidr", "location" } },
 	policy  = { title = "Policies",  fields = { "copies", "offsite", "frequency" } },
 	job     = { title = "Jobs",      fields = { "partOf", "tool", "schedule" } },
-	dr      = { title = "Decisions", fields = { "id", "status" } },
+	dr      = { title = "Decisions", fields = { "id" } },
 }
 
 -----------------------------------------------------------------------
@@ -1464,7 +1710,8 @@ end
 -----------------------------------------------------------------------
 -- ITAM.views.index(tagName)
 --
--- Every object of one kind under the configured roots, sorted by type
+-- Every object of one kind under the configured roots, sorted by type;
+-- the `status` column only for a kind with `status` in this space
 -----------------------------------------------------------------------
 function ITAM.views.index(tagName)
 	local kind = kinds[tagName] or { title = tagName, fields = {} }
@@ -1480,6 +1727,7 @@ function ITAM.views.index(tagName)
 		sortByName(pages)
 	end
 	for _, field in ipairs(kind.fields) do table.insert(fields, field) end
+	if ITAM.statusOf(tagName) then table.insert(fields, "status") end
 
 	local columns = { "name" }
 	for _, field in ipairs(fields) do
@@ -1736,28 +1984,35 @@ end
 -- The `dr` tag: a decision record after the ADR pattern, with a status
 -- lifecycle, an area, the people who decide and own it, and links to
 -- the decisions it rests on, relates to or supersedes. The views draw
--- the decisions as a graph and list those due for review.
+-- the decisions as a graph and list those due for review. The
+-- lifecycle (ITAM.drStatuses, ITAM.drDots, ITAM.drActive,
+-- ITAM.drStatusOf) is configured as `dr.statuses` and built in
+-- itam.lua; nothing here names a status value.
 -----------------------------------------------------------------------
 
 -----------------------------------------------------------------------
--- ITAM.drDots
+-- statusSchema()
 --
--- The status dot, used as page decoration and in the graph
+-- The `status` property of a decision: an enum of the configured
+-- lifecycle, or text when the space allows any value
 -----------------------------------------------------------------------
-ITAM.drDots = {
-	proposed = "🟡", provisional = "🔵", accepted = "🟢",
-	superseded = "⚪", deprecated = "🟠", rejected = "🔴",
-}
-ITAM.drStatuses = { "proposed", "provisional", "accepted", "superseded", "deprecated", "rejected" }
-ITAM.drActive = { proposed = true, provisional = true, accepted = true }
+local function statusSchema()
+	local spec = { type = "string", description = "Lifecycle state, in order: " .. table.concat(ITAM.drStatuses, ", ") .. " (configured as dr.statuses under the `itam` key of CONFIG)." }
+	if #ITAM.drStatuses == 0 then
+		spec.description = "Lifecycle state: any text (dr.statuses under the `itam` key of CONFIG is empty)."
+	else
+		spec.enum = ITAM.drStatuses
+	end
+	return spec
+end
 
 -----------------------------------------------------------------------
 -- Tag dr
 --
--- The configured areas become an enum and the configured tag page is
--- set when the library loads; `validate` checks the area again when a
--- page is indexed. A decision may belong to several areas: `area` is
--- one value or a list.
+-- The configured lifecycle and areas become enums and the configured
+-- tag page is set when the library loads; `validate` checks status and
+-- area again when a page is indexed. A decision may belong to several
+-- areas: `area` is one value or a list.
 -----------------------------------------------------------------------
 local drConfig = ITAM.config().dr
 local drSpec = {
@@ -1765,11 +2020,7 @@ local drSpec = {
 	schema = {
 		type = "object",
 		properties = {
-			status = {
-				type = "string",
-				enum = ITAM.drStatuses,
-				description = "Lifecycle state: proposed -> provisional -> accepted, then superseded or deprecated; rejected is a dead end."
-			},
+			status = statusSchema(),
 			date = {
 				type = "string",
 				description = "Date the decision was made (YYYY-MM-DD)."
@@ -1807,6 +2058,9 @@ local drSpec = {
 		required = { "status" },
 	},
 	validate = function(o)
+		if not ITAM.oneOf(o.status, ITAM.drStatuses) then
+			return "status must be one of " .. table.concat(ITAM.drStatuses, ", ")
+		end
 		local areas = ITAM.config().dr.areas
 		if not ITAM.allOf(o.area, areas) then
 			return "area must be one of " .. table.concat(areas, ", ")
@@ -1899,9 +2153,10 @@ end
 -----------------------------------------------------------------------
 -- ITAM.views.drDueForReview(days)
 --
--- The active decisions (proposed, provisional, accepted) whose
--- `lastReviewed` is missing or older than `days` (default: the
--- configured reviewDays), oldest first
+-- The active decisions (the statuses with `active`, by default
+-- proposed, provisional and accepted) whose `lastReviewed` is missing
+-- or older than `days` (default: the configured reviewDays), oldest
+-- first
 -----------------------------------------------------------------------
 function ITAM.views.drDueForReview(days)
 	days = days or ITAM.config().dr.reviewDays
@@ -1926,13 +2181,13 @@ end
 -----------------------------------------------------------------------
 -- ITAM.views.drProvisional()
 --
--- The provisional decisions with the days since their last change,
--- longest unchanged first
+-- The provisional decisions (the statuses with `provisional`) with the
+-- days since their last change, longest unchanged first
 -----------------------------------------------------------------------
 function ITAM.views.drProvisional()
 	local rows, pages = {}, {}
 	for _, page in ipairs(ITAM.pages("dr")) do
-		if page.status == "provisional" then table.insert(pages, page) end
+		if ITAM.drStatusOf(page.status).provisional then table.insert(pages, page) end
 	end
 	table.sort(pages, function(a, b) return (a.lastModified or "") < (b.lastModified or "") end)
 	local now = os.time()

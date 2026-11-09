@@ -5,6 +5,7 @@ tags:
 type: lan
 cidr: 192.168.1.0/24
 location: Home
+status: active
 lastReviewed: "2026-01-15"
 ---
 # LAN Home

@@ -5,28 +5,35 @@
 -- The `dr` tag: a decision record after the ADR pattern, with a status
 -- lifecycle, an area, the people who decide and own it, and links to
 -- the decisions it rests on, relates to or supersedes. The views draw
--- the decisions as a graph and list those due for review.
+-- the decisions as a graph and list those due for review. The
+-- lifecycle (ITAM.drStatuses, ITAM.drDots, ITAM.drActive,
+-- ITAM.drStatusOf) is configured as `dr.statuses` and built in
+-- itam.lua; nothing here names a status value.
 -----------------------------------------------------------------------
 
 -----------------------------------------------------------------------
--- ITAM.drDots
+-- statusSchema()
 --
--- The status dot, used as page decoration and in the graph
+-- The `status` property of a decision: an enum of the configured
+-- lifecycle, or text when the space allows any value
 -----------------------------------------------------------------------
-ITAM.drDots = {
-	proposed = "🟡", provisional = "🔵", accepted = "🟢",
-	superseded = "⚪", deprecated = "🟠", rejected = "🔴",
-}
-ITAM.drStatuses = { "proposed", "provisional", "accepted", "superseded", "deprecated", "rejected" }
-ITAM.drActive = { proposed = true, provisional = true, accepted = true }
+local function statusSchema()
+	local spec = { type = "string", description = "Lifecycle state, in order: " .. table.concat(ITAM.drStatuses, ", ") .. " (configured as dr.statuses under the `itam` key of CONFIG)." }
+	if #ITAM.drStatuses == 0 then
+		spec.description = "Lifecycle state: any text (dr.statuses under the `itam` key of CONFIG is empty)."
+	else
+		spec.enum = ITAM.drStatuses
+	end
+	return spec
+end
 
 -----------------------------------------------------------------------
 -- Tag dr
 --
--- The configured areas become an enum and the configured tag page is
--- set when the library loads; `validate` checks the area again when a
--- page is indexed. A decision may belong to several areas: `area` is
--- one value or a list.
+-- The configured lifecycle and areas become enums and the configured
+-- tag page is set when the library loads; `validate` checks status and
+-- area again when a page is indexed. A decision may belong to several
+-- areas: `area` is one value or a list.
 -----------------------------------------------------------------------
 local drConfig = ITAM.config().dr
 local drSpec = {
@@ -34,11 +41,7 @@ local drSpec = {
 	schema = {
 		type = "object",
 		properties = {
-			status = {
-				type = "string",
-				enum = ITAM.drStatuses,
-				description = "Lifecycle state: proposed -> provisional -> accepted, then superseded or deprecated; rejected is a dead end."
-			},
+			status = statusSchema(),
 			date = {
 				type = "string",
 				description = "Date the decision was made (YYYY-MM-DD)."
@@ -76,6 +79,9 @@ local drSpec = {
 		required = { "status" },
 	},
 	validate = function(o)
+		if not ITAM.oneOf(o.status, ITAM.drStatuses) then
+			return "status must be one of " .. table.concat(ITAM.drStatuses, ", ")
+		end
 		local areas = ITAM.config().dr.areas
 		if not ITAM.allOf(o.area, areas) then
 			return "area must be one of " .. table.concat(areas, ", ")
@@ -168,9 +174,10 @@ end
 -----------------------------------------------------------------------
 -- ITAM.views.drDueForReview(days)
 --
--- The active decisions (proposed, provisional, accepted) whose
--- `lastReviewed` is missing or older than `days` (default: the
--- configured reviewDays), oldest first
+-- The active decisions (the statuses with `active`, by default
+-- proposed, provisional and accepted) whose `lastReviewed` is missing
+-- or older than `days` (default: the configured reviewDays), oldest
+-- first
 -----------------------------------------------------------------------
 function ITAM.views.drDueForReview(days)
 	days = days or ITAM.config().dr.reviewDays
@@ -195,13 +202,13 @@ end
 -----------------------------------------------------------------------
 -- ITAM.views.drProvisional()
 --
--- The provisional decisions with the days since their last change,
--- longest unchanged first
+-- The provisional decisions (the statuses with `provisional`) with the
+-- days since their last change, longest unchanged first
 -----------------------------------------------------------------------
 function ITAM.views.drProvisional()
 	local rows, pages = {}, {}
 	for _, page in ipairs(ITAM.pages("dr")) do
-		if page.status == "provisional" then table.insert(pages, page) end
+		if ITAM.drStatusOf(page.status).provisional then table.insert(pages, page) end
 	end
 	table.sort(pages, function(a, b) return (a.lastModified or "") < (b.lastModified or "") end)
 	local now = os.time()

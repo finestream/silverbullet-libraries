@@ -24,6 +24,8 @@ ITAM_ROOT ?= Computer/
 ITAM_SITES ?= Home, Office
 ITAM_AREAS ?= infrastructure, knowledge
 ITAM_DECIDERS ?= @me
+ITAM_JOB_STATUSES ?= active, parked
+ITAM_DR_STATUSES ?= proposed, provisional, accepted, superseded, deprecated, rejected, draft
 UT_EXCLUDE ?= Library/, Archive/
 UT_PROPOSED_PREFIX ?= Drafts/
 # OPEN_COMMAND can be overridden on Linux with xdg-open
@@ -198,6 +200,12 @@ testspace: all
 	@printf '      sites = { %s }, -- allowed location values\n' \
 		"$$(printf '%s' '$(ITAM_SITES)' | sed 's/ *, */", "/g; s/^/"/; s/$$/"/')" \
 		>> "$(TEST_TEST_DIR)/CONFIG.md"
+	@printf '%s\n' '      statuses = { -- allowed status values per kind; the other kinds keep the defaults' \
+		>> "$(TEST_TEST_DIR)/CONFIG.md"
+	@printf '          job = { %s },\n' \
+		"$$(printf '%s' '$(ITAM_JOB_STATUSES)' | sed 's/ *, */", "/g; s/^/"/; s/$$/"/')" \
+		>> "$(TEST_TEST_DIR)/CONFIG.md"
+	@printf '%s\n' '      },' >> "$(TEST_TEST_DIR)/CONFIG.md"
 	@printf '%s\n' '      dr = {' >> "$(TEST_TEST_DIR)/CONFIG.md"
 	@printf '          tagPage = "%sDecision", -- the page the dr tag opens\n' \
 		"$(ITAM_ROOT)" \
@@ -210,6 +218,9 @@ testspace: all
 		>> "$(TEST_TEST_DIR)/CONFIG.md"
 	@printf '          owner = "%s", -- owner of a new decision\n' \
 		"$(ITAM_DECIDERS)" \
+		>> "$(TEST_TEST_DIR)/CONFIG.md"
+	@printf '          statuses = { %s }, -- the lifecycle, in order; a name alone has no dot and no role\n' \
+		"$$(printf '%s' '$(ITAM_DR_STATUSES)' | sed 's/ *, */", "/g; s/^/"/; s/$$/"/')" \
 		>> "$(TEST_TEST_DIR)/CONFIG.md"
 	@printf '%s\n' '      },' >> "$(TEST_TEST_DIR)/CONFIG.md"
 	@printf '%s\n' '  },' >> "$(TEST_TEST_DIR)/CONFIG.md"
@@ -341,6 +352,8 @@ help:
 	@printf "  ITAM_SITES\tITAM location values, comma separated\n"
 	@printf "  ITAM_AREAS\tITAM decision areas, comma separated\n"
 	@printf "  ITAM_DECIDERS\tITAM deciders and owner of a new decision\n"
+	@printf "  ITAM_JOB_STATUSES\tITAM status values of a job, comma separated\n"
+	@printf "  ITAM_DR_STATUSES\tITAM lifecycle of a decision, comma separated\n"
 	@printf "  vendor-utilities\tRegenerate src/utilities/jsdiff.lua from the vendored jsdiff\n"
 	@printf "  UT_EXCLUDE\tUtilities page prefixes left out of every view (comma separated)\n"
 	@printf "  UT_PROPOSED_PREFIX\tUtilities folder of pages waiting for review\n"

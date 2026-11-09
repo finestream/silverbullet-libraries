@@ -14,7 +14,7 @@ frontmatter: |
   network:  # the networks it is on, as links
   platform:  # OS and hardware
   lanIp:  # fixed or reserved LAN addresses only; leave out for DHCP
-  status: active  # active, on-demand, parked, free (a host that is gone is deleted, not kept)
+  ${ITAM.statusLine("host")}
   lastReviewed: "${date.today()}"
 ---
 |^|

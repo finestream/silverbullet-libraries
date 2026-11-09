@@ -10,6 +10,7 @@ source:
 - "[[Computer/Storage/documents]]"
 implements:
 - "[[Computer/Policy/offsite]]"
+status: active
 lastReviewed: "2026-01-15"
 ---
 # snapshots

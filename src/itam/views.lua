@@ -178,16 +178,17 @@ ITAM.views.sortByName = sortByName
 -- kinds
 --
 -- Every kind: its title, and the fields its index page shows after
--- name and type
+-- name and type; `status` follows for a kind that has it in this
+-- space (ITAM.statusOf)
 -----------------------------------------------------------------------
 local kinds = {
-	host    = { title = "Hosts",     fields = { "role", "location", "status" } },
-	service = { title = "Services",  fields = { "partOf", "purpose", "status" } },
-	storage = { title = "Storage",   fields = { "partOf", "policies", "status" } },
+	host    = { title = "Hosts",     fields = { "role", "location" } },
+	service = { title = "Services",  fields = { "partOf", "purpose" } },
+	storage = { title = "Storage",   fields = { "partOf", "policies" } },
 	network = { title = "Networks",  fields = { "partOf", "cidr", "location" } },
 	policy  = { title = "Policies",  fields = { "copies", "offsite", "frequency" } },
 	job     = { title = "Jobs",      fields = { "partOf", "tool", "schedule" } },
-	dr      = { title = "Decisions", fields = { "id", "status" } },
+	dr      = { title = "Decisions", fields = { "id" } },
 }
 
 -----------------------------------------------------------------------
@@ -319,7 +320,8 @@ end
 -----------------------------------------------------------------------
 -- ITAM.views.index(tagName)
 --
--- Every object of one kind under the configured roots, sorted by type
+-- Every object of one kind under the configured roots, sorted by type;
+-- the `status` column only for a kind with `status` in this space
 -----------------------------------------------------------------------
 function ITAM.views.index(tagName)
 	local kind = kinds[tagName] or { title = tagName, fields = {} }
@@ -335,6 +337,7 @@ function ITAM.views.index(tagName)
 		sortByName(pages)
 	end
 	for _, field in ipairs(kind.fields) do table.insert(fields, field) end
+	if ITAM.statusOf(tagName) then table.insert(fields, "status") end
 
 	local columns = { "name" }
 	for _, field in ipairs(fields) do

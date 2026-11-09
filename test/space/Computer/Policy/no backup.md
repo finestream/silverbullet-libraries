@@ -5,6 +5,7 @@ tags:
 type: backup
 copies: 1
 offsite: false
+status: active
 lastReviewed: "2026-01-15"
 ---
 # no backup

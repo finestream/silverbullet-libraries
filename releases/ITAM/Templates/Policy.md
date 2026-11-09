@@ -15,6 +15,7 @@ frontmatter: |
   retentionLocal:
   retentionOffsite:
   retentionSnapshots:
+  ${ITAM.statusLine("policy")}
   lastReviewed: "${date.today()}"
 ---
 |^|

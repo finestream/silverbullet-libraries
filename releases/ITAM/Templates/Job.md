@@ -15,6 +15,7 @@ frontmatter: |
   source:  # copy jobs: the storage copied from
   target:  # backup and sync jobs: the storage copied to
   implements:  # the policy it fulfils
+  ${ITAM.statusLine("job")}
   lastReviewed: "${date.today()}"
 ---
 |^|

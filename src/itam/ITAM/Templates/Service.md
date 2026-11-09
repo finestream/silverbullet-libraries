@@ -17,7 +17,7 @@ frontmatter: |
   exposedVia:  # the reverse proxy, as a link
   authVia:  # the login service, as a link
   dependsOn:
-  status: active  # active, on-demand, parked (a service that is gone is deleted, not kept)
+  ${ITAM.statusLine("service")}
   lastReviewed: "${date.today()}"
 ---
 |^|

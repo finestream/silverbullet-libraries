@@ -13,6 +13,7 @@ target:
 implements:
 - "[[Computer/Policy/offsite]]"
 encrypted: true
+status: parked
 lastReviewed: "2026-01-15"
 ---
 # documents offsite

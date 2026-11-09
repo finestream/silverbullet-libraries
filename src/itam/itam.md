@@ -35,11 +35,16 @@ shown. The library writes nothing but the pages you create from its templates.
   kind, `ITAM.views.copies()` the copies of every protected storage,
   `ITAM.views.architecture()` draws the hosts by site with the networks they are
   on, `ITAM.views.decisions {…}` draws the decisions as a graph.
-* *Decision records* the tag `dr` after the ADR pattern: `status`
-  (`proposed` → `provisional` → `accepted`, then `superseded` or `deprecated`;
-  `rejected` is a dead end), `area` (one value or a list), `deciders`, `owner`, `lastReviewed`,
-  `supersedes`, `dependsOn`, `related`. Two views list what needs attention:
+* *Decision records* the tag `dr` after the ADR pattern: `status` (a
+  lifecycle, by default `proposed` → `provisional` → `accepted`, then
+  `superseded` or `deprecated`; `rejected` is a dead end), `area` (one value or
+  a list), `deciders`, `owner`, `lastReviewed`, `supersedes`, `dependsOn`,
+  `related`. Two views list what needs attention:
   `ITAM.views.drDueForReview()` and `ITAM.views.drProvisional()`.
+* *Status values are configuration* which `status` values an object of each
+  kind may carry, whether it must carry one, and the lifecycle of a decision
+  (the values, the dot of each, which count as active or provisional) are set
+  in `CONFIG`; the schemas, the templates and the views read them from there.
 * *Page templates* one command per kind (`ITAM: New Host`, `ITAM: New Service`,
   `ITAM: New Storage`, `ITAM: New Network`, `ITAM: New Policy`, `ITAM: New Job`, `ITAM: New Decision`)
   creates a page with the right fields, the allowed values as comments, and
@@ -66,8 +71,8 @@ shown. The library writes nothing but the pages you create from its templates.
 ## Configuration
 
 Configuration is optional: without it, the objects are expected under
-`Computer/`, any `location` and `area` is accepted, and the default type
-lists apply. To adapt the library to your space, add the following section
+`Computer/`, any `location` and `area` is accepted, and the default type and
+status lists apply. To adapt the library to your space, add the following section
 to your `CONFIG` page in a space-lua block; every key may be left out:
 
 ```lua
@@ -85,12 +90,22 @@ config.set {
         "update", "test", "scrub", "script",
       },
     },
+    statuses = {                       -- allowed `status` values per kind; a kind left out keeps its default
+      host = { "active", "on-demand", "spare" }, -- a list: `status` is required and one of these
+      job = { values = { "active", "retired" }, optional = true }, -- `status` may be left out
+      network = false,                 -- no `status` field
+      policy = {},                     -- `status` is required, any text
+    },
     dr = {
       tagPage = "Computer/Decision",   -- the page the `dr` tag opens
       areas = { "infrastructure", "knowledge" }, -- allowed `area` values, one or a list per decision; {} allows any text
       deciders = "@me",                -- `deciders` of a new decision
       owner = "@me",                   -- `owner` of a new decision
       reviewDays = 180,                -- a decision is due for review this many days after lastReviewed
+      statuses = {                     -- the lifecycle, in order; an entry is a name, or a table with a name and properties
+        { name = "draft", dot = "⚫", active = true },
+        "proposed", "provisional", "accepted", "superseded", "deprecated", "rejected",
+      },
     },
   }
 }
@@ -133,10 +148,56 @@ An entry named like a default keeps that default's properties, so listing
 sets. **A new name given as plain text is not a copy job:** a new copy job needs
 `copy = true`.
 
+### status values
+
+Which `status` values a page may carry is configuration, per kind, under
+`statuses`; the lifecycle of a decision is `dr.statuses`. These are the
+defaults:
+
+| Kind | `status` | Values |
+| --- | --- | --- |
+| `host`, `service`, `storage`, `network`, `policy`, `job` | required | `planned`, `implementation`, `active`, `on-demand`, `spare`, `retired` |
+| `dr` | required | `proposed`, `provisional`, `accepted`, `superseded`, `deprecated`, `rejected` |
+
+Every component shares one lifecycle: `planned` (decided, not yet started),
+`implementation` (being set up), `active` (in use), `on-demand` (in service,
+started only when needed), `spare` (on hand, not in use), `retired` (gone,
+kept for the record).
+
+A kind under `statuses` takes one of three forms; a kind left out keeps its
+default:
+
+* a list of values: `status` is required and must be one of them; `{}` makes
+  it required but any text;
+* a table `{ values = { … }, optional = true }`: as the list, and the field may
+  be left out;
+* `false`: the kind has no `status`. The schema does not know the field, the
+  template has no such line and the index table no such column.
+
+`dr.statuses` is the lifecycle: the values in their order, the first being
+what `ITAM: New Decision` sets. An entry is a name, or a table with a name and
+properties:
+
+| Property | Meaning |
+| --- | --- |
+| `dot` | the decoration of the page and the marker in the graph; a value without a dot shows 📐, as an unknown value does |
+| `active` | the decision is in force or on its way there: `ITAM.views.drDueForReview()` lists it when its review is due |
+| `provisional` | binding but still edited in place: `ITAM.views.drProvisional()` lists it |
+
+By default `proposed`, `provisional` and `accepted` are active and
+`provisional` is provisional. An entry named like a default keeps that
+default's properties, so listing `"proposed"` as a name is enough, and a table
+changes only the properties it sets; a new name given as plain text has no dot
+and no property. An empty list allows any text, with no dots and nothing
+active.
+
+The templates and the first value: the `status` line of a new page carries the
+first configured value of its kind and the allowed values as a comment.
+
 ### when the configuration is read
 
-The library reads `types`, builds the schemas and sets the `dr` tag page when
-it loads. It carries `-- priority: -10`
+The library reads `types`, `statuses` and `dr.statuses`, builds the schemas
+and sets the `dr` tag page when it loads. It carries `-- priority: -10`
 ([load order](https://silverbullet.md/Space%20Lua)), so it loads after every
 script without a priority, whatever page your `config.set` is on. A
 `config.set` with a priority below -10 comes too late. After a change to
@@ -192,6 +253,9 @@ everything into one block, each section and diagram in its own `div`.
   of areas, one of `dr.areas`, when those lists are configured.
 * `type` and `auth` must be in the list of their kind. A service's `type` may
   be a list when it runs differently per host.
+* `status` must be one of the values configured for the kind (`statuses`,
+  `dr.statuses`), and is required unless the kind's entry says `optional`. A
+  kind without `status` does not check the field.
 * A `domain` is an extra tag on a service of type `external`: `registered`
   and `renewal` are dates (`YYYY-MM-DD`), `mail` says who handles mail for it.
 
@@ -204,7 +268,11 @@ everything on it), `ITAM.views.stack(name)` (the storage layers around a storage
 `ITAM.backup.diagram(name)`, and the helpers in `ITAM` (`ITAM.list`, `ITAM.link`,
 `ITAM.unlink`, `ITAM.short`, `ITAM.pages(tag)`, `ITAM.page(name)`,
 `ITAM.byName(tag)`, `ITAM.copies(job)`, `ITAM.typesOf(kind)`,
-`ITAM.definitionOf(kind, name)`, `ITAM.flowchart()`).
+`ITAM.definitionOf(kind, name)`, `ITAM.statusOf(kind)` (the `status` field of a
+kind as `{ values, optional }`, `nil` for a kind without one; `"dr"` answers with
+the lifecycle), `ITAM.drStatuses`, `ITAM.drDots`, `ITAM.drActive`,
+`ITAM.drStatusOf(name)` (one value of the lifecycle with its properties),
+`ITAM.flowchart()`).
 
 ### commands
 
@@ -221,9 +289,10 @@ Each page template adds one command that creates a page of its kind:
 ### page templates
 
 The templates are installed next to this page, under `ITAM/Templates/`, and read
-`pagePrefix`, `sites`, `dr.areas`, `dr.deciders`, `dr.owner` and the type
-lists from the configuration, so a new page proposes the right folder and
-lists the allowed values as comments.
+`pagePrefix`, `sites`, `dr.areas`, `dr.deciders`, `dr.owner`, the type lists
+and the status values from the configuration, so a new page proposes the right
+folder and lists the allowed values as comments. The `status` line carries the
+first configured value of the kind; a kind without `status` gets no such line.
 
 ### notes
 

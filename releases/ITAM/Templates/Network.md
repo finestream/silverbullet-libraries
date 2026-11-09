@@ -12,6 +12,7 @@ frontmatter: |
   partOf:  # the host, for Docker networks
   cidr:  # e.g. 192.168.1.0/24
   location:  # for type lan: ${ITAM.hint("sites")}
+  ${ITAM.statusLine("network")}
   lastReviewed: "${date.today()}"
 ---
 |^|
