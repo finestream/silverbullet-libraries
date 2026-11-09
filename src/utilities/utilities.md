@@ -1,14 +1,16 @@
 
 # Utilities
 
-Space-wide views that belong to no other library: a tag cloud, and a health
+Space-wide views that belong to no other library: a tag cloud, a health
 table that counts what needs attention in a space, with a detail page per
-check.
+check, and change proposals: edits to a page that someone else (typically an
+agent without write access to that page) proposes, and that you review as a
+diff and apply with one click.
 
-Nothing is stored: every view is computed from the index when the page is
-shown. Pages call `utilities.tagCloud()` and `utilities.health()` only, so a
-space that restricts what pages may call needs just these two entries on its
-allowlist.
+Nothing is stored beyond what you apply: every view is computed from the index
+and the pages when it is shown. Pages call `utilities.tagCloud()`,
+`utilities.health()` and `utilities.proposals()` only, so a space that
+restricts what pages may call needs just these three entries on its allowlist.
 
 ## Features
 
@@ -26,7 +28,16 @@ allowlist.
     library's cache;
   * *Pages waiting for review*: pages in a configured folder (for example
     where agents write) that have been `proposed` for too long.
+  * *Open proposals*: change proposals that are open or stale.
 * *Detail pages* `health:<check>` lists the pages behind a count, as links.
+* *Change proposals* each open proposal is shown the way GitHub shows a diff
+  of a Markdown file: *Formatted* (the page as it will look, removed blocks
+  struck through on red, added ones on green; a list or a table keeps its
+  shape and only the changed items or rows are coloured) or *Text* (the source
+  lines, with the changed words highlighted). *Apply* writes the change to the
+  page with your rights, *Edit* opens the proposal so you can change the
+  proposed text first, *Reject* drops it, and *Apply all* applies every open
+  proposal after one confirmation.
 * *Safe output* text from the space (page and tag names, frontmatter values,
   error messages) is never written into the page as is: a page name becomes a
   link only when it cannot break out of one or start like a URL
@@ -63,6 +74,8 @@ so this check cannot see such a page.
   `status: proposed` whose frontmatter `date` (or, without one, the last
   change) is more than `proposedDays` days ago. Without `proposedPrefix` the
   row is not shown.
+* *Open proposals*: pages tagged `proposal` whose `outcome` is `open`,
+  missing or `stale`.
 
 ## Configuration
 
@@ -104,5 +117,52 @@ ${utilities.health()}
 
 The *Detail* column links to the check's detail page, for example
 `[[health:aspiring]]`; the MCP rows link to the report page.
+
+### Proposals
+
+```
+${utilities.proposals()}
+${utilities.proposals("Some/Page")}
+```
+
+The first lists every open proposal, the second only those for one page (put
+it on that page to see what is waiting for it).
+
+A proposal is a page tagged `proposal`. Its frontmatter names the page to
+change, and its body holds the reason as text and then one pair of fenced
+blocks per change: the text as it is now, and the text that replaces it.
+Use four tildes, so the blocks can contain backticks and code fences.
+
+```markdown
+---
+tags: proposal
+target: "[[Notes/Garden]]"
+outcome: open
+---
+Watering moved to the morning.
+
+~~~~expected
+Watering is done in the evening.
+~~~~
+~~~~replacement
+Watering is done early in the morning.
+~~~~
+```
+
+* **Stale check.** Every expected text must occur exactly once in the target
+  page, when the proposal is shown and again when it is applied. Otherwise the
+  proposal cannot be applied, and shows why; *Close as stale* records that.
+  Nothing is matched approximately: the author writes a new proposal.
+* **Outcome.** *Apply*, *Reject* and *Close as stale* record `applied`,
+  `rejected` or `stale` in the proposal's `outcome`; only `open` (or no
+  `outcome`) and `stale` proposals are listed. Proposal pages are never
+  deleted by the library.
+* **Nothing runs before you apply.** The formatted view is rendered by
+  SilverBullet's own Markdown renderer, which shows `${...}` as text and drops
+  scripts and event handlers; the text view is plain text. The proposed text
+  runs only once it is in the page, like anything you write yourself.
+* **The diff** is computed by [jsdiff](https://github.com/kpdecker/jsdiff)
+  (BSD-3-Clause), which is part of the library: nothing is loaded from the
+  network.
 
 ## Code

@@ -71,7 +71,7 @@ itam_FILES := ITAM/Templates/Decision.md ITAM/Templates/Host.md ITAM/Templates/J
 
 utilities_PAGE := Utilities
 utilities_DOCS := utilities.md
-utilities_LUA := utilities.lua health.lua
+utilities_LUA := utilities.lua jsdiff.lua proposals.lua health.lua
 
 # Release/versioning
 RELEASE_MAJOR_FILE ?= RELEASE_MAJOR
@@ -79,7 +79,7 @@ RELEASE_MINOR_FILE ?= RELEASE_MINOR
 RELEASE_PATCH_FILE ?= RELEASE_PATCH
 RELEASE_DIR ?= releases
 
-.PHONY: help all build clean test testspace release changelog $(LIBRARIES)
+.PHONY: help all build clean test testspace release changelog vendor-utilities $(LIBRARIES)
 
 ###############################################################################
 # Build
@@ -341,6 +341,7 @@ help:
 	@printf "  ITAM_SITES\tITAM location values, comma separated\n"
 	@printf "  ITAM_AREAS\tITAM decision areas, comma separated\n"
 	@printf "  ITAM_DECIDERS\tITAM deciders and owner of a new decision\n"
+	@printf "  vendor-utilities\tRegenerate src/utilities/jsdiff.lua from the vendored jsdiff\n"
 	@printf "  UT_EXCLUDE\tUtilities page prefixes left out of every view (comma separated)\n"
 	@printf "  UT_PROPOSED_PREFIX\tUtilities folder of pages waiting for review\n"
 	@printf "  OPEN_COMMAND\tCommand to open the default browser (default: open)\n"
@@ -353,6 +354,15 @@ help:
 
 # Clean removes the SilverBullet test container and deletes generated test
 # directories so the environment is reset for the next run.
+# The Utilities library carries jsdiff base64-encoded in a Lua fragment
+# (src/utilities/vendor/README.md); regenerate it after updating jsdiff.
+UTILITIES_JSDIFF := src/utilities/vendor/jsdiff-9.0.0.esm.min.js
+
+vendor-utilities:
+	@cat src/utilities/vendor/jsdiff.lua.head > src/utilities/jsdiff.lua
+	@printf 'utilities.jsdiffSource = "%s"\n' "$$(base64 < $(UTILITIES_JSDIFF) | tr -d '\n')" >> src/utilities/jsdiff.lua
+	@echo "Wrote src/utilities/jsdiff.lua from $(UTILITIES_JSDIFF)."
+
 clean:
 	@echo "Cleaning..."
 	@docker rm -f "$(SB_CONTAINER)" >/dev/null 2>&1 || true

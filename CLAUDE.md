@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this repo is
 
-A collection of [SilverBullet](https://silverbullet.md) libraries written in Space-Lua. A "library" here is **not** a plug/JS bundle: it is a single markdown page that a user installs into their SilverBullet space via the Library Manager, containing documentation plus one ` ```space-lua ` code block (and, for kanboard, a ` ```space-style ` block in its docs page). Four libraries so far: `kanboard` (SilverBullet ↔ Kanboard task sync), `imagegallery` (paginated thumbnail grids of the images in a space), `itam` (the page `ITAM`, IT asset management: tag schemas, views and page templates for documenting a set-up as pages) and `utilities` (the page `Utilities`: a tag cloud and a space health table).
+A collection of [SilverBullet](https://silverbullet.md) libraries written in Space-Lua. A "library" here is **not** a plug/JS bundle: it is a single markdown page that a user installs into their SilverBullet space via the Library Manager, containing documentation plus one ` ```space-lua ` code block (and, for kanboard, a ` ```space-style ` block in its docs page). Four libraries so far: `kanboard` (SilverBullet ↔ Kanboard task sync), `imagegallery` (paginated thumbnail grids of the images in a space), `itam` (the page `ITAM`, IT asset management: tag schemas, views and page templates for documenting a set-up as pages) and `utilities` (the page `Utilities`: a tag cloud, a space health table and change proposals).
 
 Users install from `REPO.md` (the repository index, consumed as a raw GitHub URL), which lists one `#meta/library/remote` block per library pointing at `releases/<Page>.md`.
 
@@ -133,13 +133,17 @@ Its configuration is the `taskTable` section of the `kanboard` key (`Kanboard.vi
 
 ## Utilities architecture
 
-**Lowercase namespace on purpose.** The global is `utilities` (not `Utilities`), because pages call `utilities.tagCloud()` and `utilities.health()` and those exact names are what a restricted space puts on its allowlist. `utilities = utilities or {}` keeps an older definition of the same table from breaking the load order either way.
+**Lowercase namespace on purpose.** The global is `utilities` (not `Utilities`), because pages call `utilities.tagCloud()`, `utilities.health()` and `utilities.proposals()` and those exact names are what a restricted space puts on its allowlist. `utilities = utilities or {}` keeps an older definition of the same table from breaking the load order either way.
 
 **Health checks are rows.** `utilities.checks` lists every row of `utilities.health()`; a check either has a `rows` function (its detail, whose length is the count, shown on the virtual page `health:<detail>`) or a `report` field read from the MCP server's report page through the index (`utilities.mcpReport`). Table and detail page call the same function. A `rows` function returning nil hides the check (decisions due for review without ITAM, pages waiting for review without `proposedPrefix`).
 
 **Output is markdown, made inert.** Every value from the space goes through `utilities.code` (a code span sized against backtick runs, `|` escaped) or `utilities.link` (a wiki link only when `utilities.safeName` holds). A virtual page's markdown is rendered like a page, so a raw `${…}` or HTML in it would run.
 
 **No value of a particular space in the defaults:** `exclude` defaults to `Library/` only and `proposedPrefix` has none; `make testspace` sets both from `UT_EXCLUDE`/`UT_PROPOSED_PREFIX`.
+
+**Proposals** (`proposals.lua`) read a page tagged `proposal` (`target`, `outcome`, pairs of `~~~~expected`/`~~~~replacement` fences), run the stale check (every expected text exactly once) and write the target with `space.writePage` when the person clicks *Apply*. The diff is jsdiff, vendored under `src/utilities/vendor/` and carried base64-encoded in the generated `jsdiff.lua` (`make vendor-utilities`), imported from a `data:` URL: Space Lua cannot hold the minified code in a long bracket string. `utilities.recentOutcomes` covers the moment between writing an outcome and the index learning about it, so a card disappears on click.
+
+**String children of the `dom` API are rendered as markdown** (`dom.td { "# x" }` becomes a heading, `[[x]]` a link). Text from a page goes in as a text node (`utilities.el`), never as a string child.
 
 **A page with conflict markers keeps only its name in the index** (SilverBullet 2.12 skips frontmatter, tags, tasks and links of such a page), which is why the conflict check reads page texts with `space.readPage`.
 
