@@ -432,10 +432,17 @@ end
 -----------------------------------------------------------------------
 -- serviceView(name)
 --
--- Service: what points to it (its own links are in its frontmatter)
+-- Service: its policies with their type, and what points to it (its
+-- other links are in its frontmatter)
 -----------------------------------------------------------------------
-local function serviceView(name)
+local function serviceView(name, page)
+	local policies = {}
+	for _, value in ipairs(ITAM.list(page.policies)) do
+		table.insert(policies, ITAM.page(ITAM.unlink(value)) or { name = ITAM.unlink(value) })
+	end
 	return {
+		section("Policies", { "policy", "type" },
+			pageRows(sortByType(policies, "policy"), { "type" })),
 		section("Exposes", { "service", "hostname", "auth" },
 			pageRows(sortByName(ITAM.views.linkedTo("service", "exposedVia", name)), { "hostname", "auth" })),
 		section("Logs in", { "service", "hostname" },
@@ -522,13 +529,15 @@ end
 -----------------------------------------------------------------------
 -- policyView(name)
 --
--- Policy: the storage that must meet it, and the jobs that implement
--- it
+-- Policy: the storage and the services that must meet it, and the jobs
+-- that implement it
 -----------------------------------------------------------------------
 local function policyView(name)
 	return {
 		section("Storage under this policy", { "storage", "type", "copies", "offsite" },
 			copyRows(sortByType(ITAM.views.linkedTo("storage", "policies", name), "storage"), true)),
+		section("Services under this policy", { "service", "type", "host" },
+			pageRows(sortByType(ITAM.views.linkedTo("service", "policies", name), "service"), { "type", "partOf" })),
 		section("Jobs implementing it", { "job", "type", "schedule" },
 			pageRows(sortByType(ITAM.views.linkedTo("job", "implements", name), "job"), { "type", "schedule" })),
 	}

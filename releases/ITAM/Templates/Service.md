@@ -17,6 +17,7 @@ frontmatter: |
   exposedVia:  # the reverse proxy, as a link
   authVia:  # the login service, as a link
   dependsOn:
+  policies:  # the policies it must meet, e.g. how it is updated
   ${ITAM.statusLine("service")}
   lastReviewed: "${date.today()}"
 ---
