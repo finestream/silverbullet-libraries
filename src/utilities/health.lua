@@ -292,6 +292,24 @@ function utilities.waitingForReview()
 end
 
 -----------------------------------------------------------------------
+-- utilities.proposalRows()
+--
+-- Proposals that are open or stale (proposals.lua), waiting for a
+-- person to apply or reject them.
+--
+-- Returns:
+--   Rows { proposal, target, outcome }.
+-----------------------------------------------------------------------
+function utilities.proposalRows()
+	local rows = {}
+	for _, name in ipairs(utilities.openProposals()) do
+		local page = (query[[from p = index.pages() where p.name == name]])[1]
+		table.insert(rows, { utilities.link(name), utilities.link(utilities.unlink(page and page.target) or ""), utilities.code(page and page.outcome or "open") })
+	end
+	return rows
+end
+
+-----------------------------------------------------------------------
 -- utilities.checks
 --
 -- The checks of the health table, in order. Each has a title and
@@ -312,6 +330,7 @@ utilities.checks = {
 	{ title = "Tasks overdue", detail = "tasks", columns = { "Task", "Due", "Page" }, rows = utilities.tasksOverdue },
 	{ title = "Tasks without due date", detail = "tasks", columns = { "Task", "Column", "Page" }, rows = utilities.tasksWithoutDue },
 	{ title = "Pages waiting for review", detail = "proposed", columns = { "Page", "Proposed since" }, rows = utilities.waitingForReview },
+	{ title = "Open proposals", detail = "proposals", columns = { "Proposal", "Target", "Outcome" }, rows = utilities.proposalRows },
 	{ title = "MCP scan: files that are not pages", report = "files" }
 }
 
