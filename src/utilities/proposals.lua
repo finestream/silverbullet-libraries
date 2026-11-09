@@ -6,7 +6,8 @@
 -- write the target page itself: tag `proposal`, frontmatter `target`
 -- (a page link) and `outcome`, then pairs of fenced blocks
 -- ~~~~expected / ~~~~replacement. ${utilities.proposals()} lists the
--- open proposals, each showing its change the way GitHub shows a diff
+-- open proposals; each links to its review, the virtual page
+-- proposal:<name>, which shows the change the way GitHub shows a diff
 -- of a Markdown file (formatted, or as text), with Apply, Edit and
 -- Reject; the person who clicks Apply writes the target page with
 -- their own rights.
@@ -47,8 +48,11 @@ end
 -- Reads a proposal page.
 --
 -- Returns:
---   Table { name, target, outcome, changes = { {expected, replacement} } },
---   or nil and an error message.
+--   Table { name, target, task, outcome, reason, changes = { {expected,
+--   replacement} } }, or nil and an error message. The outcome is the
+--   one just written (utilities.recentOutcomes) when the index has not
+--   caught up yet; the reason is the text between the frontmatter and
+--   the first fence.
 -----------------------------------------------------------------------
 function utilities.readProposal(name)
 	local page = (query[[from p = index.pages() where p.name == name]])[1]
@@ -71,7 +75,17 @@ function utilities.readProposal(name)
 		end
 	end
 	if #changes == 0 then return nil, "no changes" end
-	return { name = name, target = target, outcome = page.outcome or "open", changes = changes }
+	local reason = string.match(utilities.stripFrontmatter(string.sub(text, 2)), "^(.-)\n~~~~") or ""
+	reason = string.gsub(reason, "^%s+", "")
+	reason = string.gsub(reason, "%s+$", "")
+	return {
+		name = name,
+		target = target,
+		task = page.task,
+		outcome = utilities.recentOutcomes[name] or page.outcome or "open",
+		reason = reason,
+		changes = changes
+	}
 end
 
 -----------------------------------------------------------------------
@@ -263,8 +277,11 @@ end
 --
 -- The formatted view: the page as it will look, rendered by
 -- SilverBullet's own markdown renderer (which shows ${...} as text
--- and drops scripts and event handlers); removed blocks struck
--- through on red, added blocks on green.
+-- and drops scripts and event handlers); removed text struck through
+-- on red, added text on green. Blocks (separated by blank lines, a
+-- heading on its own) that are unchanged render as they are; a
+-- changed block is compared line by line, a changed table row by row,
+-- so only what changed is coloured.
 -----------------------------------------------------------------------
 function utilities.formattedDiff(old, new)
 	local m = utilities.jsdiff()
@@ -285,23 +302,35 @@ function utilities.formattedDiff(old, new)
 		container.appendChild(block)
 	end
 
+	-- the blocks of a page: separated by blank lines, and a heading is a
+	-- block of its own, because a page often puts its text directly under
+	-- the heading (as a decision record does)
 	local function blocks(text)
 		local out = {}
 		for block in string.gmatch(utilities.stripFrontmatter(text) .. "\n\n", "(.-)\n[ \t]*\n") do
-			if string.find(block, "%S") then table.insert(out, block) end
+			local current = {}
+			for _, line in ipairs(utilities.lines(block)) do
+				if string.find(line, "^#+ ") then
+					if #current > 0 then table.insert(out, table.concat(current, "\n")) end
+					table.insert(out, line)
+					current = {}
+				else
+					table.insert(current, line)
+				end
+			end
+			if #current > 0 then table.insert(out, table.concat(current, "\n")) end
 		end
-		return out
+		local kept = {}
+		for _, block in ipairs(out) do
+			if string.find(block, "%S") then table.insert(kept, block) end
+		end
+		return kept
 	end
 
-	local function isList(block)
-		for _, line in ipairs(utilities.lines(block)) do
-			if not (string.find(line, "^%s*[%*%-%+] ") or string.find(line, "^%s*%d+%. ")) then return false end
-		end
-		return true
-	end
-
-	-- a changed list: item by item, so an added item does not repeat the list
-	local function listDiff(before, after)
+	-- a changed block, line by line: only the changed lines are coloured,
+	-- so an edited list item does not repeat the list and an edited line
+	-- of a paragraph does not strike the paragraph
+	local function lineDiff(before, after)
 		local items = m.diffArrays(js.tojs(utilities.lines(before)), js.tojs(utilities.lines(after)))
 		for i = 1, items.length do
 			local part = items[i]
@@ -360,15 +389,20 @@ function utilities.formattedDiff(old, new)
 		if p.removed and nextPart and nextPart.added and p.value.length == nextPart.value.length then
 			for k = 1, p.value.length do
 				local before, after = p.value[k], nextPart.value[k]
-				if isList(before) and isList(after) then
-					listDiff(before, after)
-				elseif isTable(before) and isTable(after) then
+				if isTable(before) and isTable(after) then
 					tableDiff(before, after)
 				else
-					render(before, "-")
-					render(after, "+")
+					lineDiff(before, after)
 				end
 			end
+			i = i + 2
+		elseif p.removed and nextPart and nextPart.added then
+			-- a different number of blocks (a paragraph split or joined, a
+			-- block inserted among changed ones): line by line over the run
+			local before, after = {}, {}
+			for k = 1, p.value.length do table.insert(before, p.value[k]) end
+			for k = 1, nextPart.value.length do table.insert(after, nextPart.value[k]) end
+			lineDiff(table.concat(before, "\n\n"), table.concat(after, "\n\n"))
 			i = i + 2
 		else
 			local kind = p.removed and "-" or (p.added and "+" or " ")
@@ -471,12 +505,48 @@ function utilities.refresh()
 end
 
 -----------------------------------------------------------------------
+-- utilities.reviewPage(name)
+--
+-- The name of the virtual page that reviews a proposal.
+-----------------------------------------------------------------------
+function utilities.reviewPage(name)
+	return "proposal:" .. name
+end
+
+-----------------------------------------------------------------------
+-- utilities.reviewLink(name)
+--
+-- A markdown link to the review of a proposal, labelled with the
+-- proposal's name, when the name is safe in a link; a code span
+-- otherwise.
+-----------------------------------------------------------------------
+function utilities.reviewLink(name)
+	if utilities.safeName(name) then return "[[" .. utilities.reviewPage(name) .. "|" .. name .. "]]" end
+	return utilities.code(name)
+end
+
+-----------------------------------------------------------------------
+-- utilities.pageLink(name, label)
+--
+-- A link to a page (or virtual page) as a DOM node that navigates on
+-- click; the label (default: the name) is a text node.
+-----------------------------------------------------------------------
+function utilities.pageLink(name, label, style)
+	return utilities.el("a", {
+		style = "cursor:pointer;" .. (style or ""),
+		onclick = function() editor.navigate({ kind = "page", page = name }) end
+	}, label or name)
+end
+
+-----------------------------------------------------------------------
 -- utilities.proposalView(name)
 --
--- The review view of one proposal as a DOM node: the target and the
--- reason, a switch between the formatted and the text diff (formatted
--- first), and Apply / Edit / Reject. A stale proposal shows why, and
--- Close records it as stale.
+-- The review of one proposal as a DOM node: the proposal (a link to
+-- its page), target, task and outcome, the reason, a switch between
+-- the formatted and the text diff (formatted first), and Apply / Edit
+-- / Reject. A stale proposal shows why, and Close records it as
+-- stale. A proposal that is applied or rejected shows its outcome and
+-- no buttons.
 -----------------------------------------------------------------------
 function utilities.proposalView(name)
 	local c = utilities.diffColours
@@ -496,71 +566,130 @@ function utilities.proposalView(name)
 	else
 		stale = err
 	end
-	local title = utilities.el("a", { style = "font-weight:bold;cursor:pointer;", onclick = function() editor.navigate(name) end }, name)
-	header.appendChild(title)
+	header.appendChild(utilities.pageLink(name, name, "font-weight:bold;"))
 	if proposal then
-		header.appendChild(utilities.el("span", { style = "opacity:0.7;" }, "→ " .. proposal.target .. " · " .. #proposal.changes .. " change" .. (#proposal.changes == 1 and "" or "s") .. " · " .. proposal.outcome))
+		local info = utilities.el("span", { style = "opacity:0.7;" }, "→ ")
+		info.appendChild(utilities.pageLink(proposal.target))
+		local facts = " · " .. #proposal.changes .. " change" .. (#proposal.changes == 1 and "" or "s")
+		if proposal.task then facts = facts .. " · task " .. tostring(proposal.task) end
+		facts = facts .. " · " .. proposal.outcome
+		info.appendChild(js.window.document.createTextNode(facts))
+		header.appendChild(info)
 	end
 	header.appendChild(dom.span { style = "flex:1;" })
 
 	local function act(action)
 		local ok, why = action()
-		if ok then
-			utilities.refresh()
-		else
-			editor.flashNotification(name .. ": " .. tostring(why), "error")
-			utilities.refresh()
+		if not ok then editor.flashNotification(name .. ": " .. tostring(why), "error") end
+		utilities.refresh()
+	end
+
+	local body = dom.div { style = "padding:0.4em 0;" }
+	if proposal and proposal.reason ~= "" then
+		body.appendChild(utilities.el("div", { style = "padding:0.2em 0.6em 0.6em 0.6em;white-space:pre-wrap;opacity:0.85;" }, proposal.reason))
+	end
+
+	-- the two views and the buttons that switch between them
+	local function addViews()
+		local formattedView = utilities.formattedDiff(old, new)
+		local textView = utilities.textDiff(old, new)
+		textView.style.display = "none"
+		local formattedButton, textButton
+		local function show(which)
+			formattedView.style.display = (which == "formatted") and "flex" or "none"
+			textView.style.display = (which == "text") and "" or "none"
+			formattedButton.style.fontWeight = (which == "formatted") and "bold" or "normal"
+			textButton.style.fontWeight = (which == "text") and "bold" or "normal"
 		end
+		formattedButton = utilities.el("button", { onclick = function() show("formatted") end }, "Formatted")
+		textButton = utilities.el("button", { onclick = function() show("text") end }, "Text")
+		formattedButton.style.fontWeight = "bold"
+		header.appendChild(formattedButton)
+		header.appendChild(textButton)
+		body.appendChild(formattedView)
+		body.appendChild(textView)
+	end
+
+	local closed = proposal and proposal.outcome ~= "open" and proposal.outcome ~= "stale"
+	if closed then
+		body.appendChild(utilities.el("div", { style = "padding:0.4em 0.6em;font-style:italic;" }, "This proposal is " .. proposal.outcome .. "; nothing to do."))
+		if new then addViews() end
+		container.appendChild(body)
+		return container
 	end
 
 	if not new then
-		container.appendChild(utilities.el("div", { style = "padding:0.6em;background:" .. c.removedLine .. ";" }, "Cannot be applied: " .. tostring(stale)))
-		header.appendChild(utilities.el("button", { onclick = function() editor.navigate(name) end }, "Edit"))
-		if proposal then
+		body.appendChild(utilities.el("div", { style = "padding:0.6em;background:" .. c.removedLine .. ";" }, "Cannot be applied: " .. tostring(stale)))
+		header.appendChild(utilities.el("button", { onclick = function() editor.navigate({ kind = "page", page = name }) end }, "Edit"))
+		if proposal and proposal.outcome ~= "stale" then
 			header.appendChild(utilities.el("button", { onclick = function()
 				act(function() utilities.setOutcome(name, "stale"); return true end)
 			end }, "Close as stale"))
 		end
+		container.appendChild(body)
 		return container
 	end
 
-	local body = dom.div { style = "padding:0.4em 0;" }
-	local formattedView = utilities.formattedDiff(old, new)
-	local textView = utilities.textDiff(old, new)
-	textView.style.display = "none"
-	local formattedButton, textButton
-	local function show(which)
-		formattedView.style.display = (which == "formatted") and "flex" or "none"
-		textView.style.display = (which == "text") and "" or "none"
-		formattedButton.style.fontWeight = (which == "formatted") and "bold" or "normal"
-		textButton.style.fontWeight = (which == "text") and "bold" or "normal"
-	end
-	formattedButton = utilities.el("button", { onclick = function() show("formatted") end }, "Formatted")
-	textButton = utilities.el("button", { onclick = function() show("text") end }, "Text")
-	header.appendChild(formattedButton)
-	header.appendChild(textButton)
+	addViews()
 	header.appendChild(utilities.el("button", { onclick = function()
 		act(function() return utilities.applyProposal(name) end)
 	end }, "Apply"))
-	header.appendChild(utilities.el("button", { onclick = function() editor.navigate(name) end }, "Edit"))
+	header.appendChild(utilities.el("button", { onclick = function() editor.navigate({ kind = "page", page = name }) end }, "Edit"))
 	header.appendChild(utilities.el("button", { onclick = function()
 		act(function() utilities.setOutcome(name, "rejected"); return true end)
 	end }, "Reject"))
-	formattedButton.style.fontWeight = "bold"
-	body.appendChild(formattedView)
-	body.appendChild(textView)
 	container.appendChild(body)
 	return container
 end
 
 -----------------------------------------------------------------------
+-- utilities.review(name)
+--
+-- The review of one proposal as a block widget. ${utilities.review()}
+-- on the virtual page proposal:<name> takes the name from the page
+-- shown; ${utilities.review("Some/Proposal")} reviews that proposal on
+-- any page.
+--
+-- Returns:
+--   A block widget.
+-----------------------------------------------------------------------
+function utilities.review(name)
+	if name == nil then
+		name = string.match(editor.getCurrentPage() or "", "^proposal:(.+)$")
+	end
+	if not name then return widget.markdownBlock("*No proposal named.*") end
+	return widget.new { html = utilities.proposalView(name), display = "block" }
+end
+
+-----------------------------------------------------------------------
+-- utilities.reviewPageText(name)
+--
+-- The markdown of the virtual page proposal:<name>: a heading that
+-- links to the proposal page, and the review widget. The name goes in
+-- through utilities.link, so a name that could break a link is shown
+-- as a code span; the widget takes the name from the page shown, not
+-- from the markdown.
+-----------------------------------------------------------------------
+function utilities.reviewPageText(name)
+	return "# Review of " .. utilities.link(name) .. "\n\n${utilities.review()}\n"
+end
+
+virtualPage.define {
+	pattern = "proposal:(.+)",
+	run = function(name)
+		return utilities.reviewPageText(name)
+	end
+}
+
+-----------------------------------------------------------------------
 -- utilities.proposals(target)
 --
--- The review page: ${utilities.proposals()} lists every open proposal,
--- ${utilities.proposals("Some/Page")} only those for that page. Each
--- is shown with its diff and buttons; "Apply all" applies every
--- proposal that is not stale, after a confirmation that names the
--- target pages.
+-- The list of open proposals: ${utilities.proposals()} lists every
+-- one, ${utilities.proposals("Some/Page")} only those for that page.
+-- One row per proposal, linking to its review (proposal:<name>) and
+-- to its target page, with the number of changes, the task and the
+-- outcome. "Apply all" applies every listed proposal that is not
+-- stale, after a confirmation that names the target pages.
 --
 -- Returns:
 --   A block widget.
@@ -570,7 +699,7 @@ function utilities.proposals(target)
 	if #names == 0 then
 		return widget.markdownBlock("*No open proposals.*")
 	end
-	local container = dom.div { style = "display:flex;flex-direction:column;gap:1em;" }
+	local container = dom.div { class = "utilities-proposals", style = "display:flex;flex-direction:column;gap:0.5em;" }
 	local bar = dom.div { style = "display:flex;gap:0.5em;align-items:center;padding-right:5em;" }
 	bar.appendChild(utilities.el("span", { style = "opacity:0.7;" }, #names .. " open proposal" .. (#names == 1 and "" or "s")))
 	bar.appendChild(utilities.el("button", { onclick = function()
@@ -594,8 +723,33 @@ function utilities.proposals(target)
 		utilities.refresh()
 	end }, "Apply all"))
 	container.appendChild(bar)
-	for _, name in ipairs(names) do
-		container.appendChild(utilities.proposalView(name))
+
+	local th = "text-align:left;padding:0.2em 1em 0.2em 0;border-bottom:1px solid rgba(128,128,128,0.4);font-weight:bold;"
+	local td = "padding:0.25em 1em 0.25em 0;vertical-align:top;"
+	local tbl = dom.table { style = "border-collapse:collapse;" }
+	local head = dom.tr {}
+	for _, label in ipairs({ "Proposal", "Target", "Changes", "Task", "State" }) do
+		head.appendChild(utilities.el("th", { style = th }, label))
 	end
+	tbl.appendChild(head)
+	for _, name in ipairs(names) do
+		local proposal, err = utilities.readProposal(name)
+		local tr = dom.tr {}
+		local first = dom.td { style = td }
+		first.appendChild(utilities.pageLink(utilities.reviewPage(name), name))
+		tr.appendChild(first)
+		if proposal then
+			local targetCell = dom.td { style = td }
+			targetCell.appendChild(utilities.pageLink(proposal.target))
+			tr.appendChild(targetCell)
+			tr.appendChild(utilities.el("td", { style = td .. "text-align:right;" }, #proposal.changes))
+			tr.appendChild(utilities.el("td", { style = td }, proposal.task or ""))
+			tr.appendChild(utilities.el("td", { style = td }, proposal.outcome))
+		else
+			tr.appendChild(utilities.el("td", { style = td, colspan = "4" }, "cannot be read: " .. tostring(err)))
+		end
+		tbl.appendChild(tr)
+	end
+	container.appendChild(tbl)
 	return widget.new { html = container, display = "block" }
 end
