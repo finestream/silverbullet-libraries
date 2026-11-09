@@ -30,14 +30,16 @@ restricts what pages may call needs just these three entries on its allowlist.
     where agents write) that have been `proposed` for too long.
   * *Open proposals*: change proposals that are open or stale.
 * *Detail pages* `health:<check>` lists the pages behind a count, as links.
-* *Change proposals* each open proposal is shown the way GitHub shows a diff
-  of a Markdown file: *Formatted* (the page as it will look, removed blocks
-  struck through on red, added ones on green; a list or a table keeps its
-  shape and only the changed items or rows are coloured) or *Text* (the source
-  lines, with the changed words highlighted). *Apply* writes the change to the
-  page with your rights, *Edit* opens the proposal so you can change the
-  proposed text first, *Reject* drops it, and *Apply all* applies every open
-  proposal after one confirmation.
+* *Change proposals* a list of the open proposals (target page, number of
+  changes, task, state), with *Apply all* for every listed proposal after one
+  confirmation. Each entry links to its review page `proposal:<name>`, which
+  shows the proposal's reason and its change the way GitHub shows a diff of a
+  Markdown file: *Formatted* (the page as it will look; only the changed
+  lines are struck through on red or added on green, a changed table only
+  its changed rows, and headings, lists and paragraphs around them stay as
+  they are) or *Text* (the source lines, with the changed words highlighted). *Apply* writes the change to the page
+  with your rights, *Edit* opens the proposal so you can change the proposed
+  text first, and *Reject* drops it.
 * *Safe output* text from the space (page and tag names, frontmatter values,
   error messages) is never written into the page as is: a page name becomes a
   link only when it cannot break out of one or start like a URL
@@ -109,6 +111,11 @@ Tags starting with `meta` are left out, as are tag names that hold a
 character that could break the link (`[ ] | { } $ < >` or a backtick) or
 that starts like a URL scheme (`name:`).
 
+The cloud is a block with the CSS class `utilities-tag-cloud`; its look is the
+style block below, which a `space-style` block of your own can override. The
+links are spaced out, because SilverBullet draws a wiki link with a padding
+and the same negative margin, so that links separated only by a space touch.
+
 ### Health
 
 ```
@@ -126,7 +133,14 @@ ${utilities.proposals("Some/Page")}
 ```
 
 The first lists every open proposal, the second only those for one page (put
-it on that page to see what is waiting for it).
+it on that page to see what is waiting for it). The list holds no diff: each
+entry links to the review page `proposal:<name of the proposal page>`, a
+virtual page with the reason, the diff and the buttons. `[[proposal:Some/Proposal]]`
+links to a review from any page. The review page calls `utilities.review()`,
+which takes the proposal from the page shown; a space that restricts what
+pages may call needs no entry for it, because a virtual page is not a file,
+but `${utilities.review("Some/Proposal")}` on a page of your own needs
+`utilities.review` on the allowlist.
 
 A proposal is a page tagged `proposal`. Its frontmatter names the page to
 change, and its body holds the reason as text and then one pair of fenced
@@ -164,5 +178,20 @@ Watering is done early in the morning.
 * **The diff** is computed by [jsdiff](https://github.com/kpdecker/jsdiff)
   (BSD-3-Clause), which is part of the library: nothing is loaded from the
   network.
+
+## Style
+
+```space-style
+/* The tag cloud: wiki links in a row, spaced out. SilverBullet gives a
+   wiki link a padding and the same negative margin, so that a space
+   between two links is all the distance there is. Its rule is
+   `#sb-main .cm-editor .sb-lua-directive-block a.wiki-link`; this one
+   names the widget's own class as well, so it wins. */
+#sb-main .cm-editor .sb-lua-directive-block.utilities-tag-cloud a.wiki-link {
+  display: inline-block;
+  margin: 0 0.6em 0.5em 0;
+  padding: 0.1em 0.5em;
+}
+```
 
 ## Code

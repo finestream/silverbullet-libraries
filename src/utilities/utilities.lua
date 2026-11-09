@@ -167,15 +167,20 @@ end
 -- utilities.tagCloud()
 --
 -- Every tag of the space once, alphabetically, as tag links
--- ([[tag:x|#x]]) separated by spaces, for inline use on a page:
--- ${utilities.tagCloud()}.
+-- ([[tag:x|#x]]), for use on a page: ${utilities.tagCloud()}.
 --
 -- Left out: tags starting with "meta", tags that occur only on pages
 -- matching the `exclude` prefixes, and tags whose name could break the
 -- link (utilities.safeName).
 --
+-- The links are markdown in a block widget with the CSS class
+-- utilities-tag-cloud. SilverBullet draws a wiki link with a padding
+-- and the same negative margin, so links separated by a space touch;
+-- the library's space-style block spaces them out through that class,
+-- and a space-style block of the space can override it.
+--
 -- Returns:
---   The links as one markdown string ("" when there is no tag).
+--   A block widget with the links ("" when there is no tag).
 -----------------------------------------------------------------------
 function utilities.tagCloud()
 	local seen, out = {}, {}
@@ -189,5 +194,10 @@ function utilities.tagCloud()
 			table.insert(out, "[[tag:" .. t.name .. "|#" .. t.name .. "]]")
 		end
 	end
-	return table.concat(out, " ")
+	if #out == 0 then return "" end
+	return widget.new {
+		markdown = table.concat(out, " "),
+		display = "block",
+		cssClasses = { "utilities-tag-cloud" }
+	}
 end

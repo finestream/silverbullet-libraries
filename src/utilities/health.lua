@@ -295,7 +295,8 @@ end
 -- utilities.proposalRows()
 --
 -- Proposals that are open or stale (proposals.lua), waiting for a
--- person to apply or reject them.
+-- person to apply or reject them. The proposal column links to the
+-- review page proposal:<name>.
 --
 -- Returns:
 --   Rows { proposal, target, outcome }.
@@ -304,7 +305,7 @@ function utilities.proposalRows()
 	local rows = {}
 	for _, name in ipairs(utilities.openProposals()) do
 		local page = (query[[from p = index.pages() where p.name == name]])[1]
-		table.insert(rows, { utilities.link(name), utilities.link(utilities.unlink(page and page.target) or ""), utilities.code(page and page.outcome or "open") })
+		table.insert(rows, { utilities.reviewLink(name), utilities.link(utilities.unlink(page and page.target) or ""), utilities.code(page and page.outcome or "open") })
 	end
 	return rows
 end
