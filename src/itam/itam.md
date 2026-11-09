@@ -25,6 +25,9 @@ shown. The library writes nothing but the pages you create from its templates.
 * *Views* every object page ends with `${ITAM.views.page(_CTX.currentPage.name)}`,
   which looks at the page's tags and shows the view for its kind, so a page
   that changes kind needs no edit.
+* *Policies on services* a service lists the policies it must meet in
+  `policies`, as storage does, for example an update policy for container
+  images; the policy page lists the services under it.
 * *Backups as storage, policies and jobs* copy jobs (by default `backup`,
   `snapshot`, `sync`) copy from a `source` storage to a `target` storage and `implements`
   the policy they fulfil. The chain is never written down: the storage view
@@ -243,10 +246,10 @@ library's own; a space that restricts what pages may call (an allowlist) needs
 | Kind | Sections |
 | --- | --- |
 | host | Services, Storage, Jobs, Networks: what it offers, holds, runs, connects to |
-| service | Exposes (services whose `exposedVia` is this page), Logs in (`authVia`), Used by (`dependsOn`) |
+| service | Policies (its `policies`, with their type), Exposes (services whose `exposedVia` is this page), Logs in (`authVia`), Used by (`dependsOn`) |
 | storage | Stack (the layers below and above, along `on`), Backup chain (with copies and offsite count), Backup diagram |
 | network | Diagram, Members (hosts first); on a LAN also Addresses (every `lanIp` on it, macvlan containers of its hosts included) |
-| policy | Storage under the policy (with copies and offsite count), Jobs implementing it |
+| policy | Storage under the policy (with copies and offsite count), Services under the policy (with their host), Jobs implementing it |
 | job | Copies (source to target) |
 | decision (`dr`) | Governs (objects whose `decision` is this page) |
 

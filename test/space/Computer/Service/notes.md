@@ -13,6 +13,8 @@ exposedVia:
 - "[[Computer/Service/proxy]]"
 authVia:
 - "[[Computer/Service/login]]"
+policies:
+- "[[Computer/Policy/offsite]]"
 status: active
 lastReviewed: "2026-01-15"
 ---

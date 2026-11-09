@@ -792,6 +792,7 @@ tag.define {
 		exposedVia = links,                         -- the reverse proxy
 		authVia    = links,                         -- the login service
 		dependsOn  = links,
+		policies   = links,                         -- e.g. how its image is updated
 	}),
 	validate = function(o)
 		local bad = checkType("service", o.type) or checkStatus("service", o.status)
@@ -887,7 +888,7 @@ tag.define {
 -----------------------------------------------------------------------
 -- Tag policy
 --
--- Policy: a rule that storage must meet
+-- Policy: a rule that storage or a service must meet
 -----------------------------------------------------------------------
 tag.define {
 	name = "policy",
