@@ -24,6 +24,8 @@ ITAM_ROOT ?= Computer/
 ITAM_SITES ?= Home, Office
 ITAM_AREAS ?= infrastructure, knowledge
 ITAM_DECIDERS ?= @me
+UT_EXCLUDE ?= Library/, Archive/
+UT_PROPOSED_PREFIX ?= Drafts/
 # OPEN_COMMAND can be overridden on Linux with xdg-open
 OPEN_COMMAND ?= open
 TEST_SPACE_DIR ?= test/space
@@ -48,7 +50,7 @@ TEST_TEST_DIR ?= test/test
 # RELEASE_PATCH.
 ###############################################################################
 
-LIBRARIES := kanboard imagegallery itam
+LIBRARIES := kanboard imagegallery itam utilities
 
 kanboard_PAGE := Kanboard
 kanboard_DOCS := kanboard.md
@@ -66,6 +68,10 @@ itam_LUA := itam.lua backup.lua views.lua decisions.lua
 itam_FILES := ITAM/Templates/Decision.md ITAM/Templates/Host.md ITAM/Templates/Job.md \
 	ITAM/Templates/Network.md ITAM/Templates/Policy.md ITAM/Templates/Service.md \
 	ITAM/Templates/Storage.md
+
+utilities_PAGE := Utilities
+utilities_DOCS := utilities.md
+utilities_LUA := utilities.lua health.lua
 
 # Release/versioning
 RELEASE_MAJOR_FILE ?= RELEASE_MAJOR
@@ -206,6 +212,14 @@ testspace: all
 		"$(ITAM_DECIDERS)" \
 		>> "$(TEST_TEST_DIR)/CONFIG.md"
 	@printf '%s\n' '      },' >> "$(TEST_TEST_DIR)/CONFIG.md"
+	@printf '%s\n' '  },' >> "$(TEST_TEST_DIR)/CONFIG.md"
+	@printf '%s\n' '  utilities = {' >> "$(TEST_TEST_DIR)/CONFIG.md"
+	@printf '      exclude = { %s }, -- pages left out of every view\n' \
+		"$$(printf '%s' '$(UT_EXCLUDE)' | sed 's/ *, */", "/g; s/^/"/; s/$$/"/')" \
+		>> "$(TEST_TEST_DIR)/CONFIG.md"
+	@printf '      proposedPrefix = "%s", -- folder of pages waiting for review\n' \
+		"$(UT_PROPOSED_PREFIX)" \
+		>> "$(TEST_TEST_DIR)/CONFIG.md"
 	@printf '%s\n' '  }' >> "$(TEST_TEST_DIR)/CONFIG.md"
 	@printf '%s\n' '}' >> "$(TEST_TEST_DIR)/CONFIG.md"
 	@printf '%s\n' '```' >> "$(TEST_TEST_DIR)/CONFIG.md"
@@ -327,6 +341,8 @@ help:
 	@printf "  ITAM_SITES\tITAM location values, comma separated\n"
 	@printf "  ITAM_AREAS\tITAM decision areas, comma separated\n"
 	@printf "  ITAM_DECIDERS\tITAM deciders and owner of a new decision\n"
+	@printf "  UT_EXCLUDE\tUtilities page prefixes left out of every view (comma separated)\n"
+	@printf "  UT_PROPOSED_PREFIX\tUtilities folder of pages waiting for review\n"
 	@printf "  OPEN_COMMAND\tCommand to open the default browser (default: open)\n"
 	@printf "  SB_IMAGE\tDocker image to run for SilverBullet\n"
 	@printf "  SB_CONTAINER\tName for the SilverBullet Docker container\n"
