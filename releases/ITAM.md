@@ -43,6 +43,9 @@ shown. The library writes nothing but the pages you create from its templates.
 * *Views* every object page ends with `${ITAM.views.page(_CTX.currentPage.name)}`,
   which looks at the page's tags and shows the view for its kind, so a page
   that changes kind needs no edit.
+* *Policies on services* a service lists the policies it must meet in
+  `policies`, as storage does, for example an update policy for container
+  images; the policy page lists the services under it.
 * *Backups as storage, policies and jobs* copy jobs (by default `backup`,
   `snapshot`, `sync`) copy from a `source` storage to a `target` storage and `implements`
   the policy they fulfil. The chain is never written down: the storage view
@@ -261,10 +264,10 @@ library's own; a space that restricts what pages may call (an allowlist) needs
 | Kind | Sections |
 | --- | --- |
 | host | Services, Storage, Jobs, Networks: what it offers, holds, runs, connects to |
-| service | Exposes (services whose `exposedVia` is this page), Logs in (`authVia`), Used by (`dependsOn`) |
+| service | Policies (its `policies`, with their type), Exposes (services whose `exposedVia` is this page), Logs in (`authVia`), Used by (`dependsOn`) |
 | storage | Stack (the layers below and above, along `on`), Backup chain (with copies and offsite count), Backup diagram |
 | network | Diagram, Members (hosts first); on a LAN also Addresses (every `lanIp` on it, macvlan containers of its hosts included) |
-| policy | Storage under the policy (with copies and offsite count), Jobs implementing it |
+| policy | Storage under the policy (with copies and offsite count), Services under the policy (with their host), Jobs implementing it |
 | job | Copies (source to target) |
 | decision (`dr`) | Governs (objects whose `decision` is this page) |
 
@@ -1136,6 +1139,7 @@ tag.define {
 		exposedVia = links,                         -- the reverse proxy
 		authVia    = links,                         -- the login service
 		dependsOn  = links,
+		policies   = links,                         -- e.g. how its image is updated
 	}),
 	validate = function(o)
 		local bad = checkType("service", o.type) or checkStatus("service", o.status)
@@ -1231,7 +1235,7 @@ tag.define {
 -----------------------------------------------------------------------
 -- Tag policy
 --
--- Policy: a rule that storage must meet
+-- Policy: a rule that storage or a service must meet
 -----------------------------------------------------------------------
 tag.define {
 	name = "policy",
@@ -1838,10 +1842,17 @@ end
 -----------------------------------------------------------------------
 -- serviceView(name)
 --
--- Service: what points to it (its own links are in its frontmatter)
+-- Service: its policies with their type, and what points to it (its
+-- other links are in its frontmatter)
 -----------------------------------------------------------------------
-local function serviceView(name)
+local function serviceView(name, page)
+	local policies = {}
+	for _, value in ipairs(ITAM.list(page.policies)) do
+		table.insert(policies, ITAM.page(ITAM.unlink(value)) or { name = ITAM.unlink(value) })
+	end
 	return {
+		section("Policies", { "policy", "type" },
+			pageRows(sortByType(policies, "policy"), { "type" })),
 		section("Exposes", { "service", "hostname", "auth" },
 			pageRows(sortByName(ITAM.views.linkedTo("service", "exposedVia", name)), { "hostname", "auth" })),
 		section("Logs in", { "service", "hostname" },
@@ -1928,13 +1939,15 @@ end
 -----------------------------------------------------------------------
 -- policyView(name)
 --
--- Policy: the storage that must meet it, and the jobs that implement
--- it
+-- Policy: the storage and the services that must meet it, and the jobs
+-- that implement it
 -----------------------------------------------------------------------
 local function policyView(name)
 	return {
 		section("Storage under this policy", { "storage", "type", "copies", "offsite" },
 			copyRows(sortByType(ITAM.views.linkedTo("storage", "policies", name), "storage"), true)),
+		section("Services under this policy", { "service", "type", "host" },
+			pageRows(sortByType(ITAM.views.linkedTo("service", "policies", name), "service"), { "type", "partOf" })),
 		section("Jobs implementing it", { "job", "type", "schedule" },
 			pageRows(sortByType(ITAM.views.linkedTo("job", "implements", name), "job"), { "type", "schedule" })),
 	}
