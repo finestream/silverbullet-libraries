@@ -167,6 +167,79 @@ function utilities.invalidFrontmatter()
 end
 
 -----------------------------------------------------------------------
+-- utilities.statusTags()
+--
+-- The tags whose definition (tag.define) has a schema with a `status`
+-- property: the tags of this space that say what `status` means. With
+-- the ITAM library these are its kinds that have a `status` and `dr`;
+-- nothing here names a tag.
+--
+-- Returns:
+--   Set { [tag] = true }, and the number of tags in it.
+-----------------------------------------------------------------------
+function utilities.statusTags()
+	local tags, count = {}, 0
+	for name, definition in pairs(config.get("tags", {}) or {}) do
+		local properties = definition.schema and definition.schema.properties
+		if properties and properties.status then
+			tags[name] = true
+			count = count + 1
+		end
+	end
+	return tags, count
+end
+
+-----------------------------------------------------------------------
+-- utilities.statusWithoutSchema()
+--
+-- Pages with a `status` in their frontmatter and no tag whose schema
+-- defines `status` (utilities.statusTags): nothing checks the value,
+-- so no query can rely on it. In a space where no tag defines
+-- `status`, the field is free everywhere and the check is not shown.
+--
+-- Returns:
+--   Rows { page, status, tags }, or nil when no tag defines `status`.
+-----------------------------------------------------------------------
+function utilities.statusWithoutSchema()
+	local defining, count = utilities.statusTags()
+	if count == 0 then return nil end
+	local rows = {}
+	for _, p in ipairs(query[[from p = index.pages() where p.status ~= nil order by p.name]]) do
+		if not utilities.excluded(p.name) then
+			local defined, tags = false, {}
+			for _, t in ipairs(p.tags or {}) do
+				if defining[t] then defined = true end
+				table.insert(tags, "#" .. t)
+			end
+			if not defined then
+				table.insert(rows, { utilities.link(p.name), utilities.code(p.status), utilities.code(table.concat(tags, " ")) })
+			end
+		end
+	end
+	return rows
+end
+
+-----------------------------------------------------------------------
+-- utilities.capitalisedStatus()
+--
+-- Pages with a `Status` key in their frontmatter. YAML keys are
+-- case-sensitive, so this is a different field from `status`: no
+-- schema checks it and every query on `status` misses the page.
+--
+-- Returns:
+--   Rows { page, Status }.
+-----------------------------------------------------------------------
+function utilities.capitalisedStatus()
+	local rows = {}
+	for _, p in ipairs(query[[from p = index.pages() where p.Status ~= nil order by p.name]]) do
+		if not utilities.excluded(p.name) then
+			table.insert(rows, { utilities.link(p.name), utilities.code(p.Status) })
+		end
+	end
+	return rows
+end
+
+-----------------------------------------------------------------------
 -- utilities.decisionsProposed()
 --
 -- Decision records (pages tagged `dr`) in status `proposed`, waiting
@@ -326,6 +399,8 @@ utilities.checks = {
 	{ title = "Conflicts", detail = "conflicts", columns = { "Page", "Kind" }, rows = utilities.conflicts },
 	{ title = "Aspiring pages", detail = "aspiring", columns = { "Missing page", "Linked from" }, rows = utilities.aspiring },
 	{ title = "Invalid frontmatter", detail = "frontmatter", columns = { "Page", "Tag", "Error" }, rows = utilities.invalidFrontmatter },
+	{ title = "Status without a schema", detail = "status", columns = { "Page", "status", "Tags" }, rows = utilities.statusWithoutSchema },
+	{ title = "Capitalised Status", detail = "status", columns = { "Page", "Status" }, rows = utilities.capitalisedStatus },
 	{ title = "Decisions proposed", detail = "decisions", columns = { "Decision", "id", "date" }, rows = utilities.decisionsProposed },
 	{ title = "Decisions due for review", detail = "decisions", columns = { "Decision", "id", "last reviewed" }, rows = utilities.decisionsDue },
 	{ title = "Tasks overdue", detail = "tasks", columns = { "Task", "Due", "Page" }, rows = utilities.tasksOverdue },

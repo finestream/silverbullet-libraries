@@ -23,6 +23,9 @@ restricts what pages may call needs just these three entries on its allowlist.
   * *Conflicts*: pages with conflict markers and `.conflicted` copies;
   * *Aspiring pages*: links to pages that do not exist;
   * *Invalid frontmatter*: formal pages whose frontmatter fails validation;
+  * *Status without a schema*: pages with a `status` that no schema checks;
+  * *Capitalised Status*: pages whose frontmatter says `Status` instead of
+    `status`;
   * *Decisions proposed* and *due for review*: decision records (`#dr`);
   * *Tasks overdue* and *without due date*: open tasks of the Kanboard
     library's cache;
@@ -65,6 +68,16 @@ so this check cannot see such a page.
   every page that is not excluded, for a line starting with `<<<<<<<`
   followed by `=======` and `>>>>>>>`. SilverBullet indexes only the name of
   a page with conflict markers, so the text has to be read.
+* *Status without a schema*: pages with a `status` in their frontmatter and
+  no tag whose definition (`tag.define`) has a schema with a `status`
+  property. The tags are read from the definitions, not listed here: with the
+  ITAM library they are `dr` and every kind configured with a `status`. No
+  schema checks such a value, so a query on `status` cannot rely on it. In a
+  space where no tag defines `status` the field is free and the row is not
+  shown.
+* *Capitalised Status*: pages with a `Status` key. YAML keys are
+  case-sensitive, so this is another field than `status`: no schema checks it
+  and a query on `status` misses the page.
 * *Decisions*: pages tagged `dr`. *Proposed* means `status: proposed`. *Due
   for review* uses the ITAM library's rule and setting (an active status, and
   `lastReviewed` missing or older than its `reviewDays`); without ITAM the row
