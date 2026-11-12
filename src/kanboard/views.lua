@@ -221,6 +221,45 @@ function Kanboard.views.node(tag, attributes, text)
 end
 
 -----------------------------------------------------------------------
+-- Kanboard.views.taskLink(id)
+--
+-- Links a Kanboard task as markdown: [757](https://host/task/757).
+--
+-- The address is the kbBaseUrl of the `kanboard` configuration, with
+-- trailing slashes and a trailing "jsonrpc.php" taken off. The id is
+-- written as a number (a number or a string of digits is accepted), so
+-- nothing but digits ends up in the link.
+--
+-- Usage in a page:
+--   ${Kanboard.views.taskLink(757)}
+--
+-- Returns:
+--   string (markdown), or nil when id is not a positive integer or no
+--   kbBaseUrl is configured
+-----------------------------------------------------------------------
+function Kanboard.views.taskLink(id)
+	if type(id) == "string" then
+		if not id:match("^%d+$") then
+			return nil
+		end
+		id = tonumber(id)
+	end
+	if type(id) ~= "number" or id < 1 or id ~= math.floor(id) then
+		return nil
+	end
+	local cfg = config.get("kanboard", {})
+	local base = cfg.kbBaseUrl
+	if type(base) ~= "string" or base == "" then
+		return nil
+	end
+	base = base:gsub("/+$", "")
+	base = base:gsub("/jsonrpc%.php$", "")
+	base = base:gsub("/+$", "")
+	local number = string.format("%d", id)
+	return "[" .. number .. "](" .. base .. "/task/" .. number .. ")"
+end
+
+-----------------------------------------------------------------------
 -- Kanboard.views.pageLink(ref, label)
 --
 -- Builds a link to a page of the space, or to a position on it
