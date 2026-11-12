@@ -18,7 +18,7 @@ restricts what pages may call needs just these three entries on its allowlist.
   page.
 * *Health table* one row per check with its count and a link to its detail:
   * *MCP scan: findings* and *files that are not pages*: the counts from the
-    report page of the [SilverBullet MCP server](https://github.com/finestream/silverbullet-mcp)'s
+    report page of the [SilverBullet MCP server](https://github.com/finestream/silverbullet-mcp-server)'s
     scan, and whether it blocks rendering;
   * *Conflicts*: pages with conflict markers and `.conflicted` copies;
   * *Aspiring pages*: links to pages that do not exist;
