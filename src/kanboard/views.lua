@@ -227,14 +227,15 @@ end
 --
 -- The address is the kbBaseUrl of the `kanboard` configuration, with
 -- trailing slashes and a trailing "jsonrpc.php" taken off. The id is
--- written as a number (a number or a string of digits is accepted), so
--- nothing but digits ends up in the link.
+-- written as a number (a number or a string of digits is accepted) and
+-- must lie between 1 and 2^53 - 1, so nothing but digits ends up in the
+-- link.
 --
 -- Usage in a page:
 --   ${Kanboard.views.taskLink(757)}
 --
 -- Returns:
---   string (markdown), or nil when id is not a positive integer or no
+--   string (markdown), or nil when id is not an integer from 1 to 2^53 - 1 or no
 --   kbBaseUrl is configured
 -----------------------------------------------------------------------
 function Kanboard.views.taskLink(id)
@@ -244,7 +245,7 @@ function Kanboard.views.taskLink(id)
 		end
 		id = tonumber(id)
 	end
-	if type(id) ~= "number" or id < 1 or id ~= math.floor(id) then
+	if type(id) ~= "number" or id < 1 or id > 9007199254740991 or id ~= math.floor(id) then
 		return nil
 	end
 	local cfg = config.get("kanboard", {})
