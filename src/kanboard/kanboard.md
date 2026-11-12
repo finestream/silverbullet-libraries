@@ -13,6 +13,7 @@ It enables minimal offline operations by leveraging native SilverBullet capabili
 * *Close tasks* Tasks can be closed by using the native Silverbullet approach. Closed tasks can be synched back to Kanboard by usind the relevant command. Please note that Kanboard colums are not stored as states but as column attributes and you can configure if closing a task moves the task to the last column in Kanboard and/or closes it.
 * *Convenience* a number of slashcommands are defined to insert pre-defined queries and attributes to the tasks.
 * *Task table* any query over tasks can be shown as a table with a button to mark a task done, sorting, filters and a search field: `Kanboard.views.tasks`.
+* *Task link* `Kanboard.views.taskLink(id)` links a task by its number: `[757](<kbBaseUrl>/task/757)`.
 
 ##  Suggested workflow
 
@@ -130,6 +131,18 @@ taskTable = {
 ```
 
 Task texts, page names and attribute values are data to the table: it shows them as text, whatever they contain. In a task text `[[Page]]`, `[label](url)` and bare `http(s)` URLs become links; a `[label](url)` with another scheme stays text. The look is the style block below, which a `space-style` block of your own can override (class names start with `kanboard-tasks`).
+
+### task link
+
+`Kanboard.views.taskLink(id)` returns the markdown link of a Kanboard task, built from `kbBaseUrl`, so a page does not write the link format by hand:
+
+```lua
+${Kanboard.views.taskLink(757)}
+```
+
+shows as [757](https://kanban.example.org/task/757) when `kbBaseUrl` is `https://kanban.example.org`. `id` is a number or a string of digits. For anything else (zero, a negative, fractional or too large number, text, nothing) and when `kbBaseUrl` is not configured the function returns nothing. The link text is the number with no `#`, which SilverBullet would read as a tag.
+
+The link uses Kanboard's `/task/<id>` form, which needs URL rewriting on the Kanboard installation; without it Kanboard's own task URLs look different and the link does not open the task.
 
 ### virtual pages
 

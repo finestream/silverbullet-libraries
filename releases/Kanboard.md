@@ -23,6 +23,7 @@ It enables minimal offline operations by leveraging native SilverBullet capabili
 * *Close tasks* Tasks can be closed by using the native Silverbullet approach. Closed tasks can be synched back to Kanboard by usind the relevant command. Please note that Kanboard colums are not stored as states but as column attributes and you can configure if closing a task moves the task to the last column in Kanboard and/or closes it.
 * *Convenience* a number of slashcommands are defined to insert pre-defined queries and attributes to the tasks.
 * *Task table* any query over tasks can be shown as a table with a button to mark a task done, sorting, filters and a search field: `Kanboard.views.tasks`.
+* *Task link* `Kanboard.views.taskLink(id)` links a task by its number: `[757](<kbBaseUrl>/task/757)`.
 
 ##  Suggested workflow
 
@@ -140,6 +141,18 @@ taskTable = {
 ```
 
 Task texts, page names and attribute values are data to the table: it shows them as text, whatever they contain. In a task text `[[Page]]`, `[label](url)` and bare `http(s)` URLs become links; a `[label](url)` with another scheme stays text. The look is the style block below, which a `space-style` block of your own can override (class names start with `kanboard-tasks`).
+
+### task link
+
+`Kanboard.views.taskLink(id)` returns the markdown link of a Kanboard task, built from `kbBaseUrl`, so a page does not write the link format by hand:
+
+```lua
+${Kanboard.views.taskLink(757)}
+```
+
+shows as [757](https://kanban.example.org/task/757) when `kbBaseUrl` is `https://kanban.example.org`. `id` is a number or a string of digits. For anything else (zero, a negative, fractional or too large number, text, nothing) and when `kbBaseUrl` is not configured the function returns nothing. The link text is the number with no `#`, which SilverBullet would read as a tag.
+
+The link uses Kanboard's `/task/<id>` form, which needs URL rewriting on the Kanboard installation; without it Kanboard's own task URLs look different and the link does not open the task.
 
 ### virtual pages
 
@@ -1815,6 +1828,46 @@ function Kanboard.views.node(tag, attributes, text)
 		node.appendChild(js.window.document.createTextNode(tostring(text)))
 	end
 	return node
+end
+
+-----------------------------------------------------------------------
+-- Kanboard.views.taskLink(id)
+--
+-- Links a Kanboard task as markdown: [757](https://host/task/757).
+--
+-- The address is the kbBaseUrl of the `kanboard` configuration, with
+-- trailing slashes and a trailing "jsonrpc.php" taken off. The id is
+-- written as a number (a number or a string of digits is accepted) and
+-- must lie between 1 and 2^53 - 1, so nothing but digits ends up in the
+-- link.
+--
+-- Usage in a page:
+--   ${Kanboard.views.taskLink(757)}
+--
+-- Returns:
+--   string (markdown), or nil when id is not an integer from 1 to 2^53 - 1 or no
+--   kbBaseUrl is configured
+-----------------------------------------------------------------------
+function Kanboard.views.taskLink(id)
+	if type(id) == "string" then
+		if not id:match("^%d+$") then
+			return nil
+		end
+		id = tonumber(id)
+	end
+	if type(id) ~= "number" or id < 1 or id > 9007199254740991 or id ~= math.floor(id) then
+		return nil
+	end
+	local cfg = config.get("kanboard", {})
+	local base = cfg.kbBaseUrl
+	if type(base) ~= "string" or base == "" then
+		return nil
+	end
+	base = base:gsub("/+$", "")
+	base = base:gsub("/jsonrpc%.php$", "")
+	base = base:gsub("/+$", "")
+	local number = string.format("%d", id)
+	return "[" .. number .. "](" .. base .. "/task/" .. number .. ")"
 end
 
 -----------------------------------------------------------------------

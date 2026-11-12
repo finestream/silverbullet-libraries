@@ -26,3 +26,9 @@ ${Kanboard.views.tasks(query[[from t = index.tasks() where t.column == "No such 
 * [x] A done task written on this page
 
 ${Kanboard.views.tasks(query[[from t = index.tasks() where t.page == "Tasks"]], {})}
+
+# Task link
+
+The link of a task, `Kanboard.views.taskLink`: ${Kanboard.views.taskLink(757)} and as a string ${Kanboard.views.taskLink("757")}.
+
+Not a task, each shows `(nothing)`: 0 ${Kanboard.views.taskLink(0) or "(nothing)"}, -3 ${Kanboard.views.taskLink(-3) or "(nothing)"}, 1.5 ${Kanboard.views.taskLink(1.5) or "(nothing)"}, "7 #x" ${Kanboard.views.taskLink("7 #x") or "(nothing)"}, 1e21 ${Kanboard.views.taskLink(1e21) or "(nothing)"}.
