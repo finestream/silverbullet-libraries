@@ -375,8 +375,13 @@ end
 -- the MCP server): pages tagged `change-proposal` under its proposal
 -- folder (config key proposals.proposalPrefix, default "Proposals/")
 -- whose `outcome` is open or missing. The proposal column links to
--- the library's review page review:<name>, where the list
--- ${proposals.list()} leads too.
+-- the library's review page review:<name>, shown under the proposal's
+-- name, where the list ${proposals.list()} leads too.
+--
+-- The target is the `target` of the proposal, a wiki link in quotes
+-- ("[[Notes/Garden]]") or a plain name; a number or a boolean is shown
+-- as a code span and any other value (a list, a map, nothing) as an
+-- empty cell.
 --
 -- Returns:
 --   Rows { proposal, target }, or nil when proposalPrefix is set to
@@ -390,9 +395,14 @@ function utilities.proposalRows()
 	for _, p in ipairs(query[[from p = index.tag "change-proposal" where p.tag == "page" order by p.name]]) do
 		if string.startsWith(p.name, prefix) and not utilities.excluded(p.name)
 			and (p.outcome == nil or p.outcome == "open") then
-			local target = type(p.target) == "string" and string.match(p.target, "^%[%[(.*)%]%]$") or p.target
+			local target = p.target
+			if type(target) == "string" then
+				target = string.match(target, "^%[%[(.*)%]%]$") or target
+			elseif type(target) ~= "number" and type(target) ~= "boolean" then
+				target = nil
+			end
 			table.insert(rows, {
-				utilities.safeName(p.name) and "[[review:" .. p.name .. "]]" or utilities.code(p.name),
+				utilities.safeName(p.name) and "[[review:" .. p.name .. "|" .. p.name .. "]]" or utilities.code(p.name),
 				utilities.link(target)
 			})
 		end
