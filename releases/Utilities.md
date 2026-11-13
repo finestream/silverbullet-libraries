@@ -107,17 +107,22 @@ so this check cannot see such a page.
   whose `outcome` is `open` or missing. The detail page shows each proposal's
   name as a link to its review page `review:<name>` (written as the alias link
   `[[review:<name>|<name>]]`, so the cell shows the name). The target is the proposal's
-  `target`: a wiki link in quotes (`"[[Notes/Garden]]"`) is shown as the link,
-  a plain name as a link too, and a number or a boolean as a code span. Any other
-  value (a list, a map) leaves the cell empty. The row is hidden when
-  `proposals.proposalPrefix` is set to an empty or non-string value, so a space
-  without the Proposals library can turn it off that way.
+  `target`: a wiki link in quotes (`"[[Notes/Garden]]"`, or with an alias
+  `"[[Notes/Garden|Garden]]"`, shown without the alias) is shown as the link, a
+  plain name as a link too, a list as its links separated by commas, and a number
+  or a boolean as a code span. Anything else (a map, nothing) leaves the cell
+  empty. The row is hidden when `utilities.proposals` is `false` (see
+  *Configuration*), and also when `proposals.proposalPrefix` is set to an empty
+  or non-string value. The count does not need the Proposals library; the
+  `review:` link does.
 
 ## Configuration
 
-Configuration is optional; without it every view works, and only the checks
-*Pages waiting for review* (without `proposedPrefix`) and *Open proposals*
-(with `proposals.proposalPrefix` set to `""`) are not shown. To change the defaults, add the
+Configuration is optional; without it every view works except *Pages waiting
+for review*, which needs `proposedPrefix`. *Open proposals* is on by default
+and off with `proposals = false`; it also stays hidden while
+`proposals.proposalPrefix` is set to `""`. Its count does not need the
+Proposals library, but its `review:` links do. To change the defaults, add the
 following section to your `CONFIG` page in a space-lua block:
 
 ```lua
@@ -128,6 +133,7 @@ config.set {
     proposedPrefix = "Drafts/", -- folder of pages waiting for review (no default)
     proposedDays = 7,           -- days a page may wait in `proposed` (default)
     conflictMarkers = true,     -- read every page for conflict markers (default: false)
+    proposals = false,          -- hide the Open proposals row (default: true)
   }
 }
 ```
@@ -206,7 +212,8 @@ utilities.defaults = {
 	mcpPage = "MCP Server",    -- report page of the MCP server's scan
 	proposedPrefix = nil,      -- folder of pages waiting for review; nil: no check
 	proposedDays = 7,          -- days a page may wait in `proposed`
-	conflictMarkers = false    -- read page texts for conflict markers (opt-in)
+	conflictMarkers = false,   -- read page texts for conflict markers (opt-in)
+	proposals = true           -- the Open proposals row (false hides it)
 }
 
 -----------------------------------------------------------------------
@@ -754,6 +761,20 @@ function utilities.waitingForReview()
 end
 
 -----------------------------------------------------------------------
+-- utilities.targetName(target)
+--
+-- The page name of a proposal's target: the name inside a wiki link
+-- in quotes, up to an alias ("[[Notes/Garden|Garden]]" gives
+-- "Notes/Garden"); any other value as it is.
+-----------------------------------------------------------------------
+function utilities.targetName(target)
+	if type(target) ~= "string" then return target end
+	local link = string.match(target, "^%[%[(.*)%]%]$")
+	if link == nil then return target end
+	return string.match(link, "^[^|]*")
+end
+
+-----------------------------------------------------------------------
 -- utilities.proposalRows()
 --
 -- The open change proposals of the Proposals library (installed with
@@ -763,16 +784,20 @@ end
 -- the library's review page review:<name>, shown under the proposal's
 -- name, where the list ${proposals.list()} leads too.
 --
--- The target is the `target` of the proposal, a wiki link in quotes
--- ("[[Notes/Garden]]") or a plain name; a number or a boolean is shown
--- as a code span and any other value (a list, a map, nothing) as an
+-- The target is the `target` of the proposal: a wiki link in quotes
+-- ("[[Notes/Garden]]", or with an alias "[[Notes/Garden|Garden]]", of
+-- which only the page name counts), a plain name, or a list of those.
+-- A list is shown as its links, separated by commas. A number or a
+-- boolean is shown as a code span (utilities.link), nothing as an
 -- empty cell.
 --
 -- Returns:
---   Rows { proposal, target }, or nil when proposalPrefix is set to
---   something that is not a non-empty string (the row is hidden).
+--   Rows { proposal, target }, or nil when the switch
+--   utilities.proposals is off or proposalPrefix is set to something
+--   that is not a non-empty string (the row is hidden).
 -----------------------------------------------------------------------
 function utilities.proposalRows()
+	if not utilities.config().proposals then return nil end
 	local prefix = (config.get("proposals", {}) or {}).proposalPrefix
 	if prefix == nil then prefix = "Proposals/" end
 	if type(prefix) ~= "string" or prefix == "" then return nil end
@@ -780,15 +805,19 @@ function utilities.proposalRows()
 	for _, p in ipairs(query[[from p = index.tag "change-proposal" where p.tag == "page" order by p.name]]) do
 		if string.startsWith(p.name, prefix) and not utilities.excluded(p.name)
 			and (p.outcome == nil or p.outcome == "open") then
-			local target = p.target
-			if type(target) == "string" then
-				target = string.match(target, "^%[%[(.*)%]%]$") or target
-			elseif type(target) ~= "number" and type(target) ~= "boolean" then
-				target = nil
+			local target
+			if type(p.target) == "table" then
+				local links = {}
+				for _, entry in ipairs(p.target) do
+					table.insert(links, utilities.link(utilities.targetName(entry)))
+				end
+				target = table.concat(links, ", ")
+			else
+				target = utilities.link(utilities.targetName(p.target))
 			end
 			table.insert(rows, {
 				utilities.safeName(p.name) and "[[review:" .. p.name .. "|" .. p.name .. "]]" or utilities.code(p.name),
-				utilities.link(target)
+				target
 			})
 		end
 	end
