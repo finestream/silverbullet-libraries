@@ -31,3 +31,10 @@ website: https://github.com/finestream/silverbullet-libraries/blob/main/releases
 description: "Space-wide views: a tag cloud and a health table of what needs attention (see releases/ for published builds)"
 ---
 ```
+```#meta/library/remote
+name: "Proposals"
+uri: https://github.com/finestream/silverbullet-mcp-server/blob/main/library/Proposals.md
+website: https://github.com/finestream/silverbullet-mcp-server/blob/main/library/Proposals.md
+description: "Review the change proposals that agents make through the SilverBullet MCP server: list, diff, Apply, Edit, Reject. Built and released with the server, in the version of its release; not part of this repository"
+---
+```
