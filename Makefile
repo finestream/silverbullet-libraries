@@ -28,6 +28,7 @@ ITAM_JOB_STATUSES ?= active, parked
 ITAM_DR_STATUSES ?= proposed, provisional, accepted, superseded, deprecated, rejected, draft
 UT_EXCLUDE ?= Library/, Archive/
 UT_PROPOSED_PREFIX ?= Drafts/
+UT_CONFLICT_MARKERS ?= true
 # OPEN_COMMAND can be overridden on Linux with xdg-open
 OPEN_COMMAND ?= open
 TEST_SPACE_DIR ?= test/space
@@ -231,6 +232,9 @@ testspace: all
 	@printf '      proposedPrefix = "%s", -- folder of pages waiting for review\n' \
 		"$(UT_PROPOSED_PREFIX)" \
 		>> "$(TEST_TEST_DIR)/CONFIG.md"
+	@printf '      conflictMarkers = %s, -- read page texts for conflict markers\n' \
+		"$(UT_CONFLICT_MARKERS)" \
+		>> "$(TEST_TEST_DIR)/CONFIG.md"
 	@printf '%s\n' '  }' >> "$(TEST_TEST_DIR)/CONFIG.md"
 	@printf '%s\n' '}' >> "$(TEST_TEST_DIR)/CONFIG.md"
 	@printf '%s\n' '```' >> "$(TEST_TEST_DIR)/CONFIG.md"
@@ -357,6 +361,7 @@ help:
 	@printf "  vendor-utilities\tRegenerate src/utilities/jsdiff.lua from the vendored jsdiff\n"
 	@printf "  UT_EXCLUDE\tUtilities page prefixes left out of every view (comma separated)\n"
 	@printf "  UT_PROPOSED_PREFIX\tUtilities folder of pages waiting for review\n"
+	@printf "  UT_CONFLICT_MARKERS\tUtilities: true reads page texts for conflict markers\n"
 	@printf "  OPEN_COMMAND\tCommand to open the default browser (default: open)\n"
 	@printf "  SB_IMAGE\tDocker image to run for SilverBullet\n"
 	@printf "  SB_CONTAINER\tName for the SilverBullet Docker container\n"

@@ -65,19 +65,23 @@ end
 -- Pages and files in conflict: copies whose name holds ".conflicted"
 -- (written by older versions of SilverBullet, and by 2.12 for files it
 -- cannot merge), and pages holding conflict markers. A page with
--- markers keeps only its name in the index, so this reads every page
--- that is not excluded.
+-- markers keeps only its name in the index, so finding it means reading
+-- every page that is not excluded. That is done only when the
+-- `conflictMarkers` setting is on: a render of the health table then
+-- loads no page text by default, so an agent that may not read a folder
+-- can still render a page that shows it.
 --
 -- Returns:
 --   Rows { page, kind }.
 -----------------------------------------------------------------------
 function utilities.conflicts()
 	local rows = {}
+	local markers = utilities.config().conflictMarkers == true
 	for _, p in ipairs(query[[from p = index.pages() order by p.name]]) do
 		if not utilities.excluded(p.name) then
 			if string.find(p.name, ".conflicted", 1, true) then
 				table.insert(rows, { utilities.link(p.name), "copy" })
-			elseif utilities.hasConflictMarkers(space.readPage(p.name)) then
+			elseif markers and utilities.hasConflictMarkers(space.readPage(p.name)) then
 				table.insert(rows, { utilities.link(p.name), "conflict markers" })
 			end
 		end
