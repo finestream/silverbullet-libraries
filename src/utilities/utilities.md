@@ -15,7 +15,10 @@ allowlist.
 **Upgrading from 0.x:** `utilities.proposals()`, `utilities.review()` and the
 virtual page `proposal:<name>` are gone. Replace `${utilities.proposals()}` on
 your pages with `${proposals.list()}`, and drop `utilities.proposals` and
-`utilities.review` from the allowlist.
+`utilities.review` from the allowlist. Links `[[proposal:<name>]]` no longer
+resolve (they show up as aspiring pages): make them `[[review:<name>]]`. The
+*Open proposals* row reads the index, so after a click in a review it lags
+until the index has caught up.
 
 ## Features
 

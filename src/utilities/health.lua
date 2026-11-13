@@ -379,19 +379,20 @@ end
 -- ${proposals.list()} leads too.
 --
 -- Returns:
---   Rows { proposal, target }.
+--   Rows { proposal, target }, or nil when proposalPrefix is set to
+--   something that is not a non-empty string (the row is hidden).
 -----------------------------------------------------------------------
 function utilities.proposalRows()
 	local prefix = (config.get("proposals", {}) or {}).proposalPrefix
-	if type(prefix) ~= "string" or prefix == "" then prefix = "Proposals/" end
+	if prefix == nil then prefix = "Proposals/" end
+	if type(prefix) ~= "string" or prefix == "" then return nil end
 	local rows = {}
 	for _, p in ipairs(query[[from p = index.tag "change-proposal" where p.tag == "page" order by p.name]]) do
 		if string.startsWith(p.name, prefix) and not utilities.excluded(p.name)
 			and (p.outcome == nil or p.outcome == "open") then
 			local target = type(p.target) == "string" and string.match(p.target, "^%[%[(.*)%]%]$") or p.target
-			local review = "review:" .. p.name
 			table.insert(rows, {
-				utilities.safeName(review) and "[[" .. review .. "]]" or utilities.code(p.name),
+				utilities.safeName(p.name) and "[[review:" .. p.name .. "]]" or utilities.code(p.name),
 				utilities.link(target)
 			})
 		end
