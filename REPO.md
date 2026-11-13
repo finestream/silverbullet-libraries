@@ -28,6 +28,6 @@ description: "Document hosts, services, networks, storage, policies, jobs and de
 name: "Utilities"
 uri: https://github.com/finestream/silverbullet-libraries/blob/main/releases/Utilities.md
 website: https://github.com/finestream/silverbullet-libraries/blob/main/releases/Utilities.md
-description: "Space-wide views: a tag cloud, a health table of what needs attention, and change proposals reviewed as a diff and applied with one click (see releases/ for published builds)"
+description: "Space-wide views: a tag cloud, and a health table of what needs attention (see releases/ for published builds)"
 ---
 ```

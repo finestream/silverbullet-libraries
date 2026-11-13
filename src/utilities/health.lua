@@ -371,18 +371,31 @@ end
 -----------------------------------------------------------------------
 -- utilities.proposalRows()
 --
--- Proposals that are open or stale (proposals.lua), waiting for a
--- person to apply or reject them. The proposal column links to the
--- review page proposal:<name>.
+-- The open change proposals of the Proposals library (installed with
+-- the MCP server): pages tagged `change-proposal` under its proposal
+-- folder (config key proposals.proposalPrefix, default "Proposals/")
+-- whose `outcome` is open or missing. The proposal column links to
+-- the library's review page review:<name>, where the list
+-- ${proposals.list()} leads too.
 --
 -- Returns:
---   Rows { proposal, target, outcome }.
+--   Rows { proposal, target }, or nil when proposalPrefix is set to
+--   something that is not a non-empty string (the row is hidden).
 -----------------------------------------------------------------------
 function utilities.proposalRows()
+	local prefix = (config.get("proposals", {}) or {}).proposalPrefix
+	if prefix == nil then prefix = "Proposals/" end
+	if type(prefix) ~= "string" or prefix == "" then return nil end
 	local rows = {}
-	for _, name in ipairs(utilities.openProposals()) do
-		local page = (query[[from p = index.pages() where p.name == name]])[1]
-		table.insert(rows, { utilities.reviewLink(name), utilities.link(utilities.unlink(page and page.target) or ""), utilities.code(page and page.outcome or "open") })
+	for _, p in ipairs(query[[from p = index.tag "change-proposal" where p.tag == "page" order by p.name]]) do
+		if string.startsWith(p.name, prefix) and not utilities.excluded(p.name)
+			and (p.outcome == nil or p.outcome == "open") then
+			local target = type(p.target) == "string" and string.match(p.target, "^%[%[(.*)%]%]$") or p.target
+			table.insert(rows, {
+				utilities.safeName(p.name) and "[[review:" .. p.name .. "]]" or utilities.code(p.name),
+				utilities.link(target)
+			})
+		end
 	end
 	return rows
 end
@@ -410,7 +423,7 @@ utilities.checks = {
 	{ title = "Tasks overdue", detail = "tasks", columns = { "Task", "Due", "Page" }, rows = utilities.tasksOverdue },
 	{ title = "Tasks without due date", detail = "tasks", columns = { "Task", "Column", "Page" }, rows = utilities.tasksWithoutDue },
 	{ title = "Pages waiting for review", detail = "proposed", columns = { "Page", "Proposed since" }, rows = utilities.waitingForReview },
-	{ title = "Open proposals", detail = "proposals", columns = { "Proposal", "Target", "Outcome" }, rows = utilities.proposalRows },
+	{ title = "Open proposals", detail = "proposals", columns = { "Proposal", "Target" }, rows = utilities.proposalRows },
 	{ title = "MCP scan: files that are not pages", report = "files" }
 }
 
