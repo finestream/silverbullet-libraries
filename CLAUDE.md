@@ -6,6 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 A collection of [SilverBullet](https://silverbullet.md) libraries written in Space-Lua. A "library" here is **not** a plug/JS bundle: it is a single markdown page that a user installs into their SilverBullet space via the Library Manager, containing documentation plus one ` ```space-lua ` code block (and, for kanboard, a ` ```space-style ` block in its docs page). Four libraries so far: `kanboard` (SilverBullet ↔ Kanboard task sync), `imagegallery` (paginated thumbnail grids of the images in a space), `itam` (the page `ITAM`, IT asset management: tag schemas, views and page templates for documenting a set-up as pages) and `utilities` (the page `Utilities`: a tag cloud and a space health table).
 
+**The Proposals library is not built here.** `REPO.md` lists it with a `#meta/library/remote` block whose `uri` is `library/Proposals.md` on `main` of `finestream/silverbullet-mcp-server`, where it is built and versioned with the server (the server refuses its proposal tools unless the installed page has the server's version). So *Library: Update* offers it like the others; there is no `src/` for it, no `RELEASE_*` and no entry in the Makefile.
+
 Users install from `REPO.md` (the repository index, consumed as a raw GitHub URL), which lists one `#meta/library/remote` block per library pointing at `releases/<Page>.md`.
 
 ## Build / test / release
