@@ -40,7 +40,8 @@ until the index has caught up.
     library's cache;
   * *Pages waiting for review*: pages in a configured folder (for example
     where agents write) that have been `proposed` for too long.
-  * *Open proposals*: change proposals of the Proposals library that are open.
+  * *Open proposals*: change proposals of the Proposals library that are open,
+    each linked to its review page, and the target it changes.
 * *Detail pages* `health:<check>` lists the pages behind a count, as links.
 * *Safe output* text from the space (page and tag names, frontmatter values,
   error messages) is never written into the page as is: a page name becomes a
@@ -93,13 +94,20 @@ so this check cannot see such a page.
   row is not shown.
 * *Open proposals*: pages tagged `change-proposal` under the Proposals
   library's folder (its `proposals.proposalPrefix`, default `Proposals/`)
-  whose `outcome` is `open` or missing. The detail page links each to its
-  review page `review:<name>`.
+  whose `outcome` is `open` or missing. The detail page shows each proposal's
+  name as a link to its review page `review:<name>` (written as the alias link
+  `[[review:<name>|<name>]]`, so the cell shows the name). The target is the proposal's
+  `target`: a wiki link in quotes (`"[[Notes/Garden]]"`) is shown as the link,
+  a plain name as a link too, and a number or a boolean as a code span. Any other
+  value (a list, a map) leaves the cell empty. The row is hidden when
+  `proposals.proposalPrefix` is set to an empty or non-string value, so a space
+  without the Proposals library can turn it off that way.
 
 ## Configuration
 
-Configuration is optional; without it every view works, and only the check
-*Pages waiting for review* is not shown. To change the defaults, add the
+Configuration is optional; without it every view works, and only the checks
+*Pages waiting for review* (without `proposedPrefix`) and *Open proposals*
+(with `proposals.proposalPrefix` set to `""`) are not shown. To change the defaults, add the
 following section to your `CONFIG` page in a space-lua block:
 
 ```lua
