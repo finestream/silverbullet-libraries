@@ -97,17 +97,22 @@ so this check cannot see such a page.
   whose `outcome` is `open` or missing. The detail page shows each proposal's
   name as a link to its review page `review:<name>` (written as the alias link
   `[[review:<name>|<name>]]`, so the cell shows the name). The target is the proposal's
-  `target`: a wiki link in quotes (`"[[Notes/Garden]]"`) is shown as the link,
-  a plain name as a link too, and a number or a boolean as a code span. Any other
-  value (a list, a map) leaves the cell empty. The row is hidden when
-  `proposals.proposalPrefix` is set to an empty or non-string value, so a space
-  without the Proposals library can turn it off that way.
+  `target`: a wiki link in quotes (`"[[Notes/Garden]]"`, or with an alias
+  `"[[Notes/Garden|Garden]]"`, shown without the alias) is shown as the link, a
+  plain name as a link too, a list as its links separated by commas, and a number
+  or a boolean as a code span. Anything else (a map, nothing) leaves the cell
+  empty. The row is hidden when `utilities.proposals` is `false` (see
+  *Configuration*), and also when `proposals.proposalPrefix` is set to an empty
+  or non-string value. The count does not need the Proposals library; the
+  `review:` link does.
 
 ## Configuration
 
-Configuration is optional; without it every view works, and only the checks
-*Pages waiting for review* (without `proposedPrefix`) and *Open proposals*
-(with `proposals.proposalPrefix` set to `""`) are not shown. To change the defaults, add the
+Configuration is optional; without it every view works except *Pages waiting
+for review*, which needs `proposedPrefix`. *Open proposals* is on by default
+and off with `proposals = false`; it also stays hidden while
+`proposals.proposalPrefix` is set to `""`. Its count does not need the
+Proposals library, but its `review:` links do. To change the defaults, add the
 following section to your `CONFIG` page in a space-lua block:
 
 ```lua
@@ -118,6 +123,7 @@ config.set {
     proposedPrefix = "Drafts/", -- folder of pages waiting for review (no default)
     proposedDays = 7,           -- days a page may wait in `proposed` (default)
     conflictMarkers = true,     -- read every page for conflict markers (default: false)
+    proposals = false,          -- hide the Open proposals row (default: true)
   }
 }
 ```
