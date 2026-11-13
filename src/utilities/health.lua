@@ -369,6 +369,20 @@ function utilities.waitingForReview()
 end
 
 -----------------------------------------------------------------------
+-- utilities.targetName(target)
+--
+-- The page name of a proposal's target: the name inside a wiki link
+-- in quotes, up to an alias ("[[Notes/Garden|Garden]]" gives
+-- "Notes/Garden"); any other value as it is.
+-----------------------------------------------------------------------
+function utilities.targetName(target)
+	if type(target) ~= "string" then return target end
+	local link = string.match(target, "^%[%[(.*)%]%]$")
+	if link == nil then return target end
+	return string.match(link, "^[^|]*")
+end
+
+-----------------------------------------------------------------------
 -- utilities.proposalRows()
 --
 -- The open change proposals of the Proposals library (installed with
@@ -378,16 +392,20 @@ end
 -- the library's review page review:<name>, shown under the proposal's
 -- name, where the list ${proposals.list()} leads too.
 --
--- The target is the `target` of the proposal, a wiki link in quotes
--- ("[[Notes/Garden]]") or a plain name; a number or a boolean is shown
--- as a code span and any other value (a list, a map, nothing) as an
+-- The target is the `target` of the proposal: a wiki link in quotes
+-- ("[[Notes/Garden]]", or with an alias "[[Notes/Garden|Garden]]", of
+-- which only the page name counts), a plain name, or a list of those.
+-- A list is shown as its links, separated by commas. A number or a
+-- boolean is shown as a code span (utilities.link), nothing as an
 -- empty cell.
 --
 -- Returns:
---   Rows { proposal, target }, or nil when proposalPrefix is set to
---   something that is not a non-empty string (the row is hidden).
+--   Rows { proposal, target }, or nil when the switch
+--   utilities.proposals is off or proposalPrefix is set to something
+--   that is not a non-empty string (the row is hidden).
 -----------------------------------------------------------------------
 function utilities.proposalRows()
+	if not utilities.config().proposals then return nil end
 	local prefix = (config.get("proposals", {}) or {}).proposalPrefix
 	if prefix == nil then prefix = "Proposals/" end
 	if type(prefix) ~= "string" or prefix == "" then return nil end
@@ -395,15 +413,19 @@ function utilities.proposalRows()
 	for _, p in ipairs(query[[from p = index.tag "change-proposal" where p.tag == "page" order by p.name]]) do
 		if string.startsWith(p.name, prefix) and not utilities.excluded(p.name)
 			and (p.outcome == nil or p.outcome == "open") then
-			local target = p.target
-			if type(target) == "string" then
-				target = string.match(target, "^%[%[(.*)%]%]$") or target
-			elseif type(target) ~= "number" and type(target) ~= "boolean" then
-				target = nil
+			local target
+			if type(p.target) == "table" then
+				local links = {}
+				for _, entry in ipairs(p.target) do
+					table.insert(links, utilities.link(utilities.targetName(entry)))
+				end
+				target = table.concat(links, ", ")
+			else
+				target = utilities.link(utilities.targetName(p.target))
 			end
 			table.insert(rows, {
 				utilities.safeName(p.name) and "[[review:" .. p.name .. "|" .. p.name .. "]]" or utilities.code(p.name),
-				utilities.link(target)
+				target
 			})
 		end
 	end

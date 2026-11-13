@@ -25,7 +25,8 @@ utilities.defaults = {
 	mcpPage = "MCP Server",    -- report page of the MCP server's scan
 	proposedPrefix = nil,      -- folder of pages waiting for review; nil: no check
 	proposedDays = 7,          -- days a page may wait in `proposed`
-	conflictMarkers = false    -- read page texts for conflict markers (opt-in)
+	conflictMarkers = false,   -- read page texts for conflict markers (opt-in)
+	proposals = true           -- the Open proposals row (false hides it)
 }
 
 -----------------------------------------------------------------------
