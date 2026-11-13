@@ -20,7 +20,8 @@ restricts what pages may call needs just these three entries on its allowlist.
   * *MCP scan: findings* and *files that are not pages*: the counts from the
     report page of the [SilverBullet MCP server](https://github.com/finestream/silverbullet-mcp-server)'s
     scan, and whether it blocks rendering;
-  * *Conflicts*: pages with conflict markers and `.conflicted` copies;
+  * *Conflicts*: `.conflicted` copies and, if `conflictMarkers` is on, pages
+    with conflict markers;
   * *Aspiring pages*: links to pages that do not exist;
   * *Invalid frontmatter*: formal pages whose frontmatter fails validation;
   * *Status without a schema*: pages with a `status` that no schema checks;
@@ -64,10 +65,13 @@ so this check cannot see such a page.
 * *MCP scan*: the headings `Findings (N)` and `Files that are not pages (N)`
   and the list item `Rendering: …` of the report page (`mcpPage`), read from
   the index. Without that page both rows say *no report*.
-* *Conflicts*: page and file names containing `.conflicted`, and the text of
-  every page that is not excluded, for a line starting with `<<<<<<<`
-  followed by `=======` and `>>>>>>>`. SilverBullet indexes only the name of
-  a page with conflict markers, so the text has to be read.
+* *Conflicts*: page and file names containing `.conflicted`, from the index.
+  With `conflictMarkers = true` also the text of every page that is not
+  excluded, for a line starting with `<<<<<<<` followed by `=======` and
+  `>>>>>>>`. SilverBullet indexes only the name of a page with conflict
+  markers, so the text has to be read. That is why it is off by default: with
+  it off the health table reads no page text, and a user who may not read
+  every page (an agent, say) can still render a page that shows the table.
 * *Status without a schema*: pages with a `status` in their frontmatter and
   no tag whose definition (`tag.define`) has a schema with a `status`
   property. The tags are read from the definitions, not listed here: with the
@@ -105,6 +109,7 @@ config.set {
     mcpPage = "MCP Server",     -- report page of the MCP server's scan (default)
     proposedPrefix = "Drafts/", -- folder of pages waiting for review (no default)
     proposedDays = 7,           -- days a page may wait in `proposed` (default)
+    conflictMarkers = true,     -- read every page for conflict markers (default: false)
   }
 }
 ```
