@@ -9,7 +9,7 @@ A collection of my libraries and plugins for [SilverBullet](https://silverbullet
 | [Kanboard](src/kanboard/kanboard.md) | Integration between SilverBullet and Kanboard. | 🚧 In development |
 | [ImageGallery](src/imagegallery/imagegallery.md) | Paginated thumbnail galleries for the images in your space. | 🚧 In development |
 | [ITAM](src/itam/itam.md) | IT asset management: document hosts, services, networks, storage, policies, jobs and decisions as pages: tag schemas, generated views and diagrams, page templates. | 🚧 In development |
-| [Utilities](src/utilities/utilities.md) | Space-wide helpers: a tag cloud, a health table of what needs attention and a comment signed with date, time and author. | 🚧 In development |
+| [Utilities](src/utilities/utilities.md) | Space-wide helpers: a tag cloud, a health table of what needs attention and a remark: a comment with date, time and author. | 🚧 In development |
 | [Proposals](https://github.com/finestream/silverbullet-mcp-server/tree/main/library) | Review of the change proposals that agents make through the SilverBullet MCP server. Lives in that repository and is only listed in `REPO.md`, so the Library Manager installs and updates it from there. | 🚧 In development |
 
 Each library is versioned and released on its own; see `make help`.

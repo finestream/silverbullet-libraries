@@ -52,8 +52,8 @@ until the index has caught up.
     where agents write) that have been `proposed` for too long.
   * *Open proposals*: change proposals of the Proposals library that are open,
     each linked to its review page, and the target it changes.
-* *Signed comment* the command *Utilities: Signed Comment* and the slash command
-  `/signedComment` add a comment like
+* *Remark* the command *Comment: Add Remark* and the slash command
+  `/remark` add a comment like
   SilverBullet's own, and start it with the moment and the logged-in user.
 * *Detail pages* `health:<check>` lists the pages behind a count, as links.
 * *Safe output* text from the space (page and tag names, frontmatter values,
@@ -170,11 +170,9 @@ ${utilities.health()}
 The *Detail* column links to the check's detail page, for example
 `[[health:aspiring]]`; the MCP rows link to the report page.
 
-### Signed comment
+### Remark
 
-Type `/signedComment` (SilverBullet 2.12 lists it under that name; later releases
-also find it when you type `/comment`), or run *Utilities:
-Signed Comment* from the command palette. The comment goes where SilverBullet's
+Type `/remark`, or run *Comment: Add Remark* from the command palette. The comment goes where SilverBullet's
 own one goes (after the current block, indented inside a list item, the selection
 quoted) and its first line is
 
@@ -196,7 +194,8 @@ the time zone of the browser that renders the page: the same comment reads
 (` -- @name`), which does not address the author the way a bare `@name` does.
 Where the space does not know the user, the line holds the moment only.
 
-SilverBullet's own `/comment` and *Comment: Add* (`Cmd-Alt-c`) stay as they are, and the new
+SilverBullet's own `/comment` and *Comment: Add* (`Cmd-Alt-c`) stay as they are (a library
+cannot replace a plug's slash command, so the new one has a name of its own), and the new
 command takes no key binding. Pages call no function of the library for this, only
 `os.date`, so a space that restricts what pages may call needs no new entry on its
 allowlist.
@@ -955,7 +954,7 @@ virtualPage.define {
 	end
 }
 -----------------------------------------------------------------------
--- utilities.signedComment()
+-- utilities.remark()
 --
 -- Adds a comment like SilverBullet's own "Comment: Add" does (after the
 -- current block, indented inside a list item, the selection quoted) and
@@ -985,7 +984,7 @@ virtualPage.define {
 -- Returns:
 --   Nothing.
 -----------------------------------------------------------------------
-function utilities.signedComment()
+function utilities.remark()
 	editor.invokeCommand("Comment: Add")
 	local line = string.format('${os.date("%%d %%B %%Y, %%H:%%M", %d)}', os.time())
 	local me = identity.own()
@@ -1021,32 +1020,30 @@ function utilities.signedComment()
 end
 
 -----------------------------------------------------------------------
--- Command: Utilities: Signed Comment
+-- Command: Comment: Add Remark
 --
--- Palette entry for utilities.signedComment(). It takes no key binding,
+-- Palette entry for utilities.remark(). It takes no key binding,
 -- so the built-in "Comment: Add" keeps its own.
 -----------------------------------------------------------------------
 command.define {
-	name = "Utilities: Signed Comment",
+	name = "Comment: Add Remark",
 	run = function()
-		utilities.signedComment()
+		utilities.remark()
 	end
 }
 
 -----------------------------------------------------------------------
--- Slash command: /signedComment
+-- Slash command: /remark
 --
--- Found when "comment" is typed (the menu matches the name; `aliases`
--- is used by later SilverBullet releases), beside the built-in /comment,
--- which SilverBullet keeps listing: a slash command of the same name
--- would not replace it.
+-- Beside the built-in /comment, which SilverBullet keeps listing: a slash
+-- command of the same name would not replace it, so this one has a name
+-- of its own.
 -----------------------------------------------------------------------
 slashCommand.define {
-	name = "signedComment",
-	aliases = { "comment" },
+	name = "remark",
 	description = "Comment with date, time and author",
 	run = function()
-		utilities.signedComment()
+		utilities.remark()
 	end
 }
 
