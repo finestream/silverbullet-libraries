@@ -1,5 +1,5 @@
 -----------------------------------------------------------------------
--- utilities.signedComment()
+-- utilities.remark()
 --
 -- Adds a comment like SilverBullet's own "Comment: Add" does (after the
 -- current block, indented inside a list item, the selection quoted) and
@@ -29,7 +29,7 @@
 -- Returns:
 --   Nothing.
 -----------------------------------------------------------------------
-function utilities.signedComment()
+function utilities.remark()
 	editor.invokeCommand("Comment: Add")
 	local line = string.format('${os.date("%%d %%B %%Y, %%H:%%M", %d)}', os.time())
 	local me = identity.own()
@@ -65,31 +65,29 @@ function utilities.signedComment()
 end
 
 -----------------------------------------------------------------------
--- Command: Utilities: Signed Comment
+-- Command: Comment: Add Remark
 --
--- Palette entry for utilities.signedComment(). It takes no key binding,
+-- Palette entry for utilities.remark(). It takes no key binding,
 -- so the built-in "Comment: Add" keeps its own.
 -----------------------------------------------------------------------
 command.define {
-	name = "Utilities: Signed Comment",
+	name = "Comment: Add Remark",
 	run = function()
-		utilities.signedComment()
+		utilities.remark()
 	end
 }
 
 -----------------------------------------------------------------------
--- Slash command: /signedComment
+-- Slash command: /remark
 --
--- Found when "comment" is typed (the menu matches the name; `aliases`
--- is used by later SilverBullet releases), beside the built-in /comment,
--- which SilverBullet keeps listing: a slash command of the same name
--- would not replace it.
+-- Beside the built-in /comment, which SilverBullet keeps listing: a slash
+-- command of the same name would not replace it, so this one has a name
+-- of its own.
 -----------------------------------------------------------------------
 slashCommand.define {
-	name = "signedComment",
-	aliases = { "comment" },
+	name = "remark",
 	description = "Comment with date, time and author",
 	run = function()
-		utilities.signedComment()
+		utilities.remark()
 	end
 }
