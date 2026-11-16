@@ -1,9 +1,9 @@
 
 # Utilities
 
-Space-wide views that belong to no other library: a tag cloud, a health
+Space-wide helpers that belong to no other library: a tag cloud, a health
 table that counts what needs attention in a space, with a detail page per
-check. Change proposals are not part of it: the Proposals library of the
+check, and a comment that starts with the date, the time and its author. Change proposals are not part of it: the Proposals library of the
 [SilverBullet MCP server](https://github.com/finestream/silverbullet-mcp-server)
 lists, reviews and applies them (`${proposals.list()}`).
 
@@ -42,6 +42,9 @@ until the index has caught up.
     where agents write) that have been `proposed` for too long.
   * *Open proposals*: change proposals of the Proposals library that are open,
     each linked to its review page, and the target it changes.
+* *Signed comment* the command *Utilities: Signed Comment* and the slash command
+  `/signedComment` add a comment like
+  SilverBullet's own, and start it with the moment and the logged-in user.
 * *Detail pages* `health:<check>` lists the pages behind a count, as links.
 * *Safe output* text from the space (page and tag names, frontmatter values,
   error messages) is never written into the page as is: a page name becomes a
@@ -156,6 +159,37 @@ ${utilities.health()}
 
 The *Detail* column links to the check's detail page, for example
 `[[health:aspiring]]`; the MCP rows link to the report page.
+
+### Signed comment
+
+Type `/signedComment` (SilverBullet 2.12 lists it under that name; later releases
+also find it when you type `/comment`), or run *Utilities:
+Signed Comment* from the command palette. The comment goes where SilverBullet's
+own one goes (after the current block, indented inside a list item, the selection
+quoted) and its first line is
+
+```
+<!--
+${os.date("%d %B %Y, %H:%M", 1795000000)} -- @name
+
+-->
+```
+
+The cursor sits on the empty line below it; with a selection, the quote follows the
+date line and the cursor sits on the blank line after the quote.
+The day is zero-padded (`06 November`).
+
+The page stores the moment as seconds since the epoch, and `os.date` shows it in
+the time zone of the browser that renders the page: the same comment reads
+`16 November 2026, 15:42` in Zurich and `16 November 2026, 14:42` in London.
+`name` is the logged-in user (`identity.own()`), written as a signature
+(` -- @name`), which does not address the author the way a bare `@name` does.
+Where the space does not know the user, the line holds the moment only.
+
+SilverBullet's own `/comment` and *Comment: Add* (`Cmd-Alt-c`) stay as they are, and the new
+command takes no key binding. Pages call no function of the library for this, only
+`os.date`, so a space that restricts what pages may call needs no new entry on its
+allowlist.
 
 ## Style
 

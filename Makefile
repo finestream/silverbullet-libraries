@@ -74,7 +74,7 @@ itam_FILES := ITAM/Templates/Decision.md ITAM/Templates/Host.md ITAM/Templates/J
 
 utilities_PAGE := Utilities
 utilities_DOCS := utilities.md
-utilities_LUA := utilities.lua health.lua
+utilities_LUA := utilities.lua health.lua comment.lua
 
 # Release/versioning
 RELEASE_MAJOR_FILE ?= RELEASE_MAJOR
