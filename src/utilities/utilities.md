@@ -43,7 +43,7 @@ until the index has caught up.
   * *Open proposals*: change proposals of the Proposals library that are open,
     each linked to its review page, and the target it changes.
 * *Signed comment* the command *Utilities: Signed Comment* and the slash command
-  `/signedComment` (found when you type `/comment`) add a comment like
+  `/signedComment` add a comment like
   SilverBullet's own, and start it with the moment and the logged-in user.
 * *Detail pages* `health:<check>` lists the pages behind a count, as links.
 * *Safe output* text from the space (page and tag names, frontmatter values,
@@ -162,7 +162,8 @@ The *Detail* column links to the check's detail page, for example
 
 ### Signed comment
 
-Type `/comment` and pick *Comment with date, time and author*, or run *Utilities:
+Type `/signedComment` (SilverBullet 2.12 lists it under that name; later releases
+also find it when you type `/comment`), or run *Utilities:
 Signed Comment* from the command palette. The comment goes where SilverBullet's
 own one goes (after the current block, indented inside a list item, the selection
 quoted) and its first line is
@@ -170,8 +171,12 @@ quoted) and its first line is
 ```
 <!--
 ${os.date("%d %B %Y, %H:%M", 1795000000)} -- @name
+
 -->
 ```
+
+The cursor sits on a new line below it; a quoted selection follows the cursor line.
+The day is zero-padded (`06 November`).
 
 The page stores the moment as seconds since the epoch, and `os.date` shows it in
 the time zone of the browser that renders the page: the same comment reads
