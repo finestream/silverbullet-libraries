@@ -11,8 +11,10 @@
 --   -->
 --
 -- The date line is the first line inside the comment, whatever the
--- built-in put there (a quoted selection follows it), and the cursor
--- sits on a new line below it, ready to type.
+-- built-in put there (a quoted selection follows it). The cursor stays
+-- where the built-in left it, moved on by the date line: on the empty
+-- line below it, or, with a selection, on the blank line after the
+-- quote.
 --
 -- The moment is stored as seconds since the epoch, so the page keeps an
 -- absolute time; os.date shows it in the time zone of the browser that
@@ -54,20 +56,12 @@ function utilities.signedComment()
 		lineStart = lineStart - 1
 	end
 	local indent = string.match(string.sub(text, lineStart, open - 1), "^%s*")
-	local openEnd = open + 4              -- 1-based, just after "<!--"
-	local nextEnd = string.find(text, "\n", openEnd + 1, true) or #text + 1
-	local blank = string.match(string.sub(text, openEnd + 1, nextEnd - 1), "^%s*$") ~= nil
-	if blank then
-		-- No selection: the built-in left an empty line for the cursor.
-		-- The date line goes above it; the cursor stays on it.
-		editor.replaceRange(openEnd - 1, openEnd - 1, "\n" .. indent .. line)
-		editor.moveCursor(nextEnd - 1 + #indent + #line + 1)
-	else
-		-- A quoted selection sits there: the date line and a new line for
-		-- the cursor go above it.
-		editor.replaceRange(openEnd - 1, openEnd - 1, "\n" .. indent .. line .. "\n" .. indent)
-		editor.moveCursor(openEnd - 1 + 1 + #indent + #line + 1 + #indent)
-	end
+	local openEnd = open + 3              -- 0-based offset just after "<!--"
+	local inserted = "\n" .. indent .. line
+	editor.replaceRange(openEnd, openEnd, inserted)
+	-- The cursor stays where the built-in left it: the empty line, or the
+	-- blank line after a quoted selection.
+	editor.moveCursor(cursor + #inserted)
 end
 
 -----------------------------------------------------------------------

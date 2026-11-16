@@ -175,7 +175,8 @@ ${os.date("%d %B %Y, %H:%M", 1795000000)} -- @name
 -->
 ```
 
-The cursor sits on a new line below it; a quoted selection follows the cursor line.
+The cursor sits on the empty line below it; with a selection, the quote follows the
+date line and the cursor sits on the blank line after the quote.
 The day is zero-padded (`06 November`).
 
 The page stores the moment as seconds since the epoch, and `os.date` shows it in
