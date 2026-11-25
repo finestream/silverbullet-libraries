@@ -41,7 +41,7 @@ From now on
 
 ## Configuration
 
-Add the following section to your `CONFIG` page in a space-lua block:
+Add the following section to your configuration page (`Library/Config`; `CONFIG` on SilverBullet 2) in a space-lua block:
 
 ```lua
 config.set {

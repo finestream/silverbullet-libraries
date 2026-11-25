@@ -39,7 +39,7 @@ renders the gallery.
 
 Configuration is optional: without it, galleries default to a 3 x 3 grid of
 200 x 200 pixel thumbnails. To change the defaults, add the following section to
-your `CONFIG` page in a space-lua block:
+your configuration page (`Library/Config`; `CONFIG` on SilverBullet 2) in a space-lua block:
 
 ```lua
 config.set {

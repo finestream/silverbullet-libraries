@@ -21,7 +21,7 @@ ITAM = {}
 -- Configuration
 --
 -- Everything that is specific to one space lives under the `itam` key
--- of its CONFIG page (config.set { itam = {…} }). Every key is
+-- of its configuration page (config.set { itam = {…} }). Every key is
 -- optional; these are the defaults. The library reads them when it
 -- needs them; a page never does.
 -----------------------------------------------------------------------
@@ -349,7 +349,7 @@ end
 -- first of them what a new page gets; `optional` whether the field may
 -- be left out. nil for a kind without `status`. "dr" answers with the
 -- lifecycle of a decision. Read when the library loads, as the types
--- are: a change to CONFIG needs System: Reload.
+-- are: a change to the configuration needs System: Reload.
 -----------------------------------------------------------------------
 function ITAM.statusOf(kind)
 	if kind == "dr" then return { values = ITAM.drStatuses, optional = false } end

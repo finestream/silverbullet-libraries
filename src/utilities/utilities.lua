@@ -16,7 +16,7 @@ utilities = utilities or {}
 -----------------------------------------------------------------------
 -- utilities.defaults
 --
--- Fallback values for the "utilities" section of the CONFIG page.
+-- Fallback values for the "utilities" section of the configuration page.
 -- proposedPrefix has no default: the check it drives is shown only
 -- once a folder is configured.
 -----------------------------------------------------------------------
@@ -32,7 +32,7 @@ utilities.defaults = {
 -----------------------------------------------------------------------
 -- utilities.config()
 --
--- Reads the "utilities" section of the CONFIG page.
+-- Reads the "utilities" section of the configuration page.
 --
 -- Returns:
 --   Table with the configured values, and the defaults for every key
