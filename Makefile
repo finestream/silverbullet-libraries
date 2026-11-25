@@ -120,21 +120,16 @@ $(LIBRARIES):
 ###############################################################################
 
 test: all testspace
-	@echo "Stopping any existing SilverBullet container..."
-	@docker stop "$(SB_CONTAINER)" >/dev/null 2>&1 || true
 	@echo "Starting SilverBullet in Docker..."
-	@docker run --rm -d --name "$(SB_CONTAINER)" \
-		-p $(SB_HOST_PORT):3000 \
-		-v "$(CURDIR)/$(TEST_TEST_DIR):/space" \
-		$(SB_IMAGE)
-	@sleep 3
-	@echo "Opening SilverBullet at http://localhost:$(SB_HOST_PORT)..."
-	@$(OPEN_COMMAND) "http://localhost:$(SB_HOST_PORT)"
+	@test/serve.sh "$(SB_IMAGE)" "$(SB_CONTAINER)" "$(SB_HOST_PORT)" "$(CURDIR)/$(TEST_TEST_DIR)"
+	@$(OPEN_COMMAND) "http://localhost:$(SB_HOST_PORT)/test/"
 
 testspace: all
 	@echo "Preparing SilverBullet testspace..."
 	@mkdir -p "$(TEST_TEST_DIR)"
 	@mkdir -p "$(TEST_TEST_DIR)/Library/Finestream"
+	@# SilverBullet 3 renames CONFIG.md at its start, unless an older one is in its place.
+	@rm -f "$(TEST_TEST_DIR)/Library/Config.md"
 	@if [ -d "$(TEST_SPACE_DIR)" ]; then \
 		cp -R "$(TEST_SPACE_DIR)/." "$(TEST_TEST_DIR)/"; \
 	fi
@@ -374,5 +369,6 @@ help:
 clean:
 	@echo "Cleaning..."
 	@docker rm -f "$(SB_CONTAINER)" >/dev/null 2>&1 || true
+	@docker volume rm "$(SB_CONTAINER)-data" >/dev/null 2>&1 || true
 	@rm -rf test/build test/test
 	@echo "Done."

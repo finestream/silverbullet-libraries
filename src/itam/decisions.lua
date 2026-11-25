@@ -18,9 +18,9 @@
 -- lifecycle, or text when the space allows any value
 -----------------------------------------------------------------------
 local function statusSchema()
-	local spec = { type = "string", description = "Lifecycle state, in order: " .. table.concat(ITAM.drStatuses, ", ") .. " (configured as dr.statuses under the `itam` key of CONFIG)." }
+	local spec = { type = "string", description = "Lifecycle state, in order: " .. table.concat(ITAM.drStatuses, ", ") .. " (configured as dr.statuses under the `itam` key of the configuration)." }
 	if #ITAM.drStatuses == 0 then
-		spec.description = "Lifecycle state: any text (dr.statuses under the `itam` key of CONFIG is empty)."
+		spec.description = "Lifecycle state: any text (dr.statuses under the `itam` key of the configuration is empty)."
 	else
 		spec.enum = ITAM.drStatuses
 	end
@@ -92,7 +92,7 @@ local drSpec = {
 		return o
 	end,
 }
-drSpec.schema.properties.area.description = "Which part(s) of the space the decision belongs to: one value or a list; the allowed values are configured (dr.areas under the `itam` key of CONFIG)."
+drSpec.schema.properties.area.description = "Which part(s) of the space the decision belongs to: one value or a list; the allowed values are configured (dr.areas under the `itam` key of the configuration)."
 if drConfig.tagPage then drSpec.tagPage = drConfig.tagPage end
 tag.define(drSpec)
 

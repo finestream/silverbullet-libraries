@@ -11,7 +11,7 @@ ImageGallery = {}
 --
 -- Fallback values for every gallery parameter. They are used for the
 -- arguments the caller omitted and that the "imagegallery" section of
--- the CONFIG page does not set either.
+-- the configuration page does not set either.
 -----------------------------------------------------------------------
 ImageGallery.defaults = {
 	directory = "",
@@ -67,7 +67,7 @@ ImageGallery.state = {}
 -----------------------------------------------------------------------
 -- ImageGallery.config()
 --
--- Reads the "imagegallery" section of the CONFIG page.
+-- Reads the "imagegallery" section of the configuration page.
 --
 -- Returns:
 --   Table with directory, cols, rows, width and height, where every

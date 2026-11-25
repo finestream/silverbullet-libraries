@@ -116,7 +116,7 @@ for review*, which needs `proposedPrefix`. *Open proposals* is on by default
 and off with `proposals = false`; it also stays hidden while
 `proposals.proposalPrefix` is set to `""`. Its count does not need the
 Proposals library, but its `review:` links do. To change the defaults, add the
-following section to your `CONFIG` page in a space-lua block:
+following section to your configuration page (`Library/Config`; `CONFIG` on SilverBullet 2) in a space-lua block:
 
 ```lua
 config.set {

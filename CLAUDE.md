@@ -18,7 +18,7 @@ Everything goes through the Makefile (`make help` lists targets). Env overrides 
 make            # = make help
 make build      # build every library: src/<lib>/* -> test/build/<Page>.md
 make <lib>      # build one library, e.g. make imagegallery
-make testspace  # build + assemble test/test/ space and generate its CONFIG.md from .env
+make testspace  # build + assemble test/test/ space and generate its CONFIG.md from .env (SilverBullet 3 renames it to Library/Config.md)
 make test       # build + testspace + run SilverBullet in Docker on $SB_HOST_PORT, open browser
 make clean      # kill the container, rm -rf test/build test/test
 make versions   # source vs released version of every library
@@ -32,12 +32,12 @@ There is **no automated test suite and no linter** — "testing" means `make tes
 Two things do give a real feedback loop, though:
 
 - **`luac -p src/<lib>/*.lua`** catches syntax errors without a browser (Space Lua is a superset-ish dialect, so this is a smoke test, not a guarantee).
-- **The Runtime API.** SilverBullet ≥2.9 ships a headless Chrome client and the test container reports `Runtime API enabled` on startup, so the space's *actual* Lua environment can be driven over HTTP:
+- **The Runtime API.** SilverBullet ships a headless Chrome client, and `make test` turns its Runtime API on and prints an API token, so the space's *actual* Lua environment can be driven over HTTP:
 
   ```sh
-  curl -d 'ImageGallery.listImages("Images")' http://localhost:3000/.runtime/lua
+  curl -H "Authorization: Bearer $TOKEN" -d 'ImageGallery.listImages("Images")' http://localhost:3000/test/.runtime/lua
   curl -d 'local w = imageGallery("Images", 3, 2, 200, 150)
-  return w.html.outerHTML' http://localhost:3000/.runtime/lua_script
+  return w.html.outerHTML' -H "Authorization: Bearer $TOKEN" http://localhost:3000/test/.runtime/lua_script
   ```
 
   `POST /.runtime/lua` evaluates one expression, `/.runtime/lua_script` a whole script with `return`; both answer `{"result": ...}` or `{"error": ...}`. This reaches `dom`, `widget`, `space.*`, `editor.navigate`, and even `element.click()`, so widgets and their event handlers can be asserted on without a browser.
@@ -80,7 +80,7 @@ Empty `kanboard/` and `scripts/` directories at the repo root are vestigial.
 
 **Notifications** go through `Library.notify(level, message)`, never `editor.flashNotification` directly: `Library.ERROR` (1) for failures, `Library.WARNING` (2) for something the user should know but that did not fail, `Library.INFO` (3) for success messages, `Library.DEBUG` (4) for diagnostics. A message is shown when the configured verbosity is at least its level. `Library.verbosity()` returns the default (1); `kanboard.lua` replaces it with `Kanboard.verbosity`, which reads `config.get("kanboard").verbosity` and falls back to `debug = true` meaning 4, so `Library` itself stays Kanboard-agnostic. Never gate control flow on the verbosity: a `return` inside `if <debug> then` changes what the code does depending on how chatty it is.
 
-**Config** lives in the user's `CONFIG` page under the `kanboard` key, read with `config.get("kanboard")`: `kbBaseUrl`, `sbBaseUrl`, `kbUsername`, `kbToken`, `kbProjectId` (default project), `sbCachePath`, `sbCacheRefreshHours`, `kbCloseDone`, `kbMoveDone`, plus optional `verbosity` (0–4, default 1; the older `debug = true` means 4) and optional `taskTable` (the task table, below). `make testspace` generates an equivalent CONFIG.md from the `KB_*`/`SB_*` env vars, so a new config key must be added in three places: `kanboard.md` docs, the `testspace` target, and `.env.example` if it should be settable per-developer.
+**Config** lives in the user's configuration page (`Library/Config`; `CONFIG` on SilverBullet 2) under the `kanboard` key, read with `config.get("kanboard")`: `kbBaseUrl`, `sbBaseUrl`, `kbUsername`, `kbToken`, `kbProjectId` (default project), `sbCachePath`, `sbCacheRefreshHours`, `kbCloseDone`, `kbMoveDone`, plus optional `verbosity` (0–4, default 1; the older `debug = true` means 4) and optional `taskTable` (the task table, below). `make testspace` generates an equivalent CONFIG.md from the `KB_*`/`SB_*` env vars, so a new config key must be added in three places: `kanboard.md` docs, the `testspace` target, and `.env.example` if it should be settable per-developer.
 
 ## ImageGallery architecture
 

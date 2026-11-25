@@ -47,7 +47,7 @@ shown. The library writes nothing but the pages you create from its templates.
 * *Status values are configuration* which `status` values an object of each
   kind may carry, whether it must carry one, and the lifecycle of a decision
   (the values, the dot of each, which count as active or provisional) are set
-  in `CONFIG`; the schemas, the templates and the views read them from there.
+  in the configuration page; the schemas, the templates and the views read them from there.
 * *Page templates* one command per kind (`ITAM: New Host`, `ITAM: New Service`,
   `ITAM: New Storage`, `ITAM: New Network`, `ITAM: New Policy`, `ITAM: New Job`, `ITAM: New Decision`)
   creates a page with the right fields, the allowed values as comments, and
@@ -76,7 +76,7 @@ shown. The library writes nothing but the pages you create from its templates.
 Configuration is optional: without it, the objects are expected under
 `Computer/`, any `location` and `area` is accepted, and the default type and
 status lists apply. To adapt the library to your space, add the following section
-to your `CONFIG` page in a space-lua block; every key may be left out:
+to your configuration page (`Library/Config`; `CONFIG` on SilverBullet 2) in a space-lua block; every key may be left out:
 
 ```lua
 config.set {
@@ -218,7 +218,7 @@ the same values. It carries `-- priority: -10`
 ([load order](https://silverbullet.md/Space%20Lua)), so it loads after every
 script without a priority, whatever page your `config.set` is on. A
 `config.set` with a priority below -10 comes too late. After a change to
-`CONFIG` run `System: Reload`, then `Space: Reindex`.
+the configuration run `System: Reload`, then `Space: Reindex`.
 
 ## Usage
 

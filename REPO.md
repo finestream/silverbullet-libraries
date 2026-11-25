@@ -1,5 +1,5 @@
 ---
-name: "Repositories/finestream"
+name: "Library/Repository/finestream"
 tags: meta/repository
 pageDecoration.prefix: "🧑🏽‍💻"
 ---
